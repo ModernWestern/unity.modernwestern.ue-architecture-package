@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UEArchitecture;
 
-[CreateAssetMenu(fileName = "#SCRIPTNAME#", menuName = "UE Architecture/Scriptable/New GameEvents")]
+[CreateAssetMenu(fileName = "#SCRIPTNAME#", menuName = "UE Architecture/Scriptable Object/New GameEvents")]
 public class #SCRIPTNAME# : GameEvents
 {
 	public override void Clear()

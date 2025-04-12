@@ -2,11 +2,11 @@
 
 namespace UEArchitecture.Editor.Util
 {
-    public static class GameStateCreator
+    public static class GameEventsCreator
     {
-        private const string Name = "GameState";
+        private const string Name = "GameEvents";
         
-        [MenuItem("Assets/Create/UE Architecture/Create/Scriptable Object/GameState Script", false, 1)]
+        [MenuItem("Assets/Create/UE Architecture/Create/Scriptable Object Script/GameEvent Script", false, 1)]
         public static void CreateGameEventScript()
         {
             ScriptCreator.CreateScriptAsset(Name);

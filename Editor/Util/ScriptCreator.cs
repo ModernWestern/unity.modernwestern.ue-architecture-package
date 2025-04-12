@@ -24,7 +24,7 @@ public static class ScriptCreator
 
         // Replace the placeholders
         template = ReplacePlaceholders(template, api?.Replace(" ", string.Empty));
-
+        
         // Temporal unity template
         var tempPath = Path.Combine(Path.GetTempPath(), $"{apiName}{scriptName}.cs.txt");
         
