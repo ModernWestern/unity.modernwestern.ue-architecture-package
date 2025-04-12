@@ -1,0 +1,11 @@
+﻿using UnityEngine;
+using UEArchitecture;
+
+[CreateAssetMenu(fileName = "#SCRIPTNAME#", menuName = "UE Architecture/Scriptable/New GameEvents")]
+public class #SCRIPTNAME# : GameEvents
+{
+	public override void Clear()
+	{
+		
+	}
+}

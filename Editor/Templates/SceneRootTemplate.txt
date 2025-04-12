@@ -1,0 +1,18 @@
+﻿using UnityEngine;
+using UEArchitecture;
+
+public class  #SCRIPTNAME# : SceneRoot
+{
+    protected override void Construct()
+    {
+        
+    }
+    protected override void Init()
+    {
+        
+    }
+    protected override void Deconstruct()
+    {
+        
+    }
+}

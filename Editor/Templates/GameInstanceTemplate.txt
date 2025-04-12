@@ -1,0 +1,10 @@
+﻿using UnityEngine;
+using UEArchitecture;
+
+public class #SCRIPTNAME# : GameInstance<#API#GameState, #API#PlayerState, #API#GameEvents>
+{
+    protected override void Construct()
+    {
+        
+    }
+}
