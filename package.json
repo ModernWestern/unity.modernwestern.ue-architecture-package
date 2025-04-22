@@ -1,6 +1,6 @@
 {
   "name": "com.modernwestern.ue-architecture",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "UEArchitecture",
   "description": "Ureal Engine Architecture\n\n- GameInstance: Holds global data that persists across scenes, such as login info, settings, or user progress. Acts as a singleton.\n- PlayerState: Stores player-specific data that persists during the game session, like name, score, stats, etc. Can be network-synced.\n- GameEvents: Central hub for broadcasting and listening to global events across systems (e.g., match start, UI updates, powerups). Helps decouple logic.\n- SceneRoot: Scene-level controller that combines GameMode rules and LevelBlueprint-like visual logic. Manages level-specific logic and initialization.\n\nInstructions for Setup\n\nBefore creating your GameInstance or SceneRoot, make sure to create the following ScriptableObjects first:\n\n- GameState\n- PlayerState\n- GameEvents\n\nOnce these are created and configured, you can safely reference them in your GameInstance and SceneRoot components to ensure all systems are properly linked.",
   "unity": "2019.2",

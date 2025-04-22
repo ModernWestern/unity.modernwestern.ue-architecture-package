@@ -3,7 +3,6 @@ namespace UEArchitecture
     using TMPro;
     using System;
     using UnityEngine;
-    using System.Collections;
     using System.Collections.Generic;
     using UnityEngine.SceneManagement;
     using GS = GameState;
@@ -27,16 +26,12 @@ namespace UEArchitecture
 
         protected abstract void Construct();
 
-        private static Action<IEnumerator> _coroutineRunner;
-
         protected virtual void Awake()
         {
             if (string.IsNullOrEmpty(UnRootedSceneName))
             {
                 LoadScene(SelectedScene, false);
             }
-
-            _coroutineRunner += ie => StartCoroutine(ie);
 
             Exists = true;
 
@@ -45,37 +40,47 @@ namespace UEArchitecture
 
         public static void LoadScene(string sceneName, bool unloadPreviousScene = true)
         {
+            if (SceneManager.GetSceneByName(sceneName).isLoaded)
+            {
+                SceneManager.UnloadSceneAsync(sceneName);
+
+                RebuildStack(sceneName);
+            }
+
+            SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+
             if (unloadPreviousScene && SceneStack.Count > 0)
             {
-                var operation = SceneManager.UnloadSceneAsync(SceneStack.Pop());
-
-                _coroutineRunner(OperationProcess(operation, Handler));
+                SceneManager.UnloadSceneAsync(SceneStack.Pop());
             }
             else
             {
                 SceneStack.Clear();
             }
 
-            return;
+            OnSceneChanged?.Invoke(sceneName);
 
-            void Handler()
-            {
-                SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-
-                OnSceneChanged?.Invoke(sceneName);
-
-                SceneStack.Push(sceneName);
-            }
+            SceneStack.Push(sceneName);
         }
 
-        private static IEnumerator OperationProcess(AsyncOperation operation, Action onComplete)
+        private static void RebuildStack(string sceneName)
         {
-            while (!operation.isDone)
+            var tempStack = new Stack<string>();
+
+            while (SceneStack.Count > 0)
             {
-                yield return null;
+                var top = SceneStack.Pop();
+
+                if (top != sceneName)
+                {
+                    tempStack.Push(top);
+                }
             }
 
-            onComplete?.Invoke();
+            while (tempStack.Count > 0)
+            {
+                SceneStack.Push(tempStack.Pop());
+            }
         }
 
         public static void RootScene()
