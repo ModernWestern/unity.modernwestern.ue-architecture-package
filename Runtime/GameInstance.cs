@@ -5,6 +5,7 @@ namespace UEArchitecture
     using UnityEngine;
     using System.Collections.Generic;
     using UnityEngine.SceneManagement;
+    
     using GS = GameState;
     using PS = PlayerState;
     using GE = GameEvents;
@@ -96,10 +97,10 @@ namespace UEArchitecture
     }
 
     public abstract class GameInstance<TGameState, TPlayerState, TGameEvents> : GameInstanceBase
-        where TGameState : GS
-        where TPlayerState : PS
-        where TGameEvents : GE
-
+    
+    where TGameState : GS
+    where TPlayerState : PS
+    where TGameEvents : GE
     {
         [SerializeField]
         protected TGameState gameState;
