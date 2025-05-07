@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
-using UEArchitecture;
+using ModernWestern.UEArchitecture;
 
-[CreateAssetMenu(fileName = "#SCRIPTNAME#", menuName = "UE Architecture/Scriptable Object/New GameState")]
+[CreateAssetMenu(fileName = "#SCRIPTNAME#", menuName = "ModernWestern/UE Architecture/Scriptable Object/New GameState")]
 public class #SCRIPTNAME# : GameState
 {
 	public override void Clear()

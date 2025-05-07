@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using UEArchitecture;
+using ModernWestern.UEArchitecture;
 
 public class #SCRIPTNAME# : GameInstance<#API#GameState, #API#PlayerState, #API#GameEvents>
 {

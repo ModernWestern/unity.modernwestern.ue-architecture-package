@@ -2,8 +2,8 @@ using System;
 using UnityEngine;
 using System.Linq;
 using UnityEditor;
-using UEArchitecture;
 using System.Collections.Generic;
+using ModernWestern.UEArchitecture;
 using BindingFlags = System.Reflection.BindingFlags;
 
 [CustomEditor(typeof(GameEvents), true), CanEditMultipleObjects]

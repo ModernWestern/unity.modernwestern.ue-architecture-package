@@ -1,4 +1,4 @@
-namespace UEArchitecture
+namespace ModernWestern.UEArchitecture
 {
     using TMPro;
     using System;

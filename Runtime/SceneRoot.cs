@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UEArchitecture
+namespace ModernWestern.UEArchitecture
 {
     public abstract class SceneRoot : MonoBehaviour
     {

@@ -1,4 +1,4 @@
-namespace UEArchitecture
+namespace ModernWestern.UEArchitecture
 {
     public interface IDataPersistent<TPlayerState, TGameEvents, TGameState> where TPlayerState : IPersistent
                                                                             where TGameEvents  : IPersistent

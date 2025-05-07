@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UEArchitecture
+namespace ModernWestern.UEArchitecture
 {
     // Player-specific replicated data (like kills, team, health)
     public abstract class PlayerState : ScriptableObject, IPersistent

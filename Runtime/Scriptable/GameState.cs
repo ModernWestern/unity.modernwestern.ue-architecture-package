@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UEArchitecture
+namespace ModernWestern.UEArchitecture
 {
     // Shared game-wide data (like score, timers, objectives)
     public abstract class GameState : ScriptableObject, IPersistent
