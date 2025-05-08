@@ -26,6 +26,8 @@ namespace ModernWestern.UEArchitecture
         public string SelectedScene { get; private set; }
 
         protected abstract void Construct();
+        
+        protected abstract void DeConstruct();
 
         protected virtual void Awake()
         {
@@ -144,6 +146,8 @@ namespace ModernWestern.UEArchitecture
             gameEvents.Clear();
 
             gameState.Clear();
+            
+            DeConstruct();
         }
     }
 }
