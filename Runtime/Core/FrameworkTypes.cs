@@ -23,9 +23,17 @@ namespace ModernWestern.UEArchitecture
                     return types;
                 }
 
-                types = Find_Internal(baseType).Where(type => !type.IsAbstract && !type.ContainsGenericParameters && type.GetConstructor(Type.EmptyTypes) != null)
-                                               .OrderBy(type => type.FullName, StringComparer.Ordinal)
-                                               .ToArray();
+                var concrete = Find_Internal(baseType).Where(type => !type.IsAbstract && !type.ContainsGenericParameters).ToArray();
+
+                foreach (var type in concrete.Where(type => type.GetConstructor(Type.EmptyTypes) == null))
+                {
+                    UnityEngine.Debug.LogWarning($"[UEArchitecture] {type.FullName} is skipped: subsystems need a public constructor without parameters" +
+                                                 (UnityEngine.Application.isEditor ? "." : " (if it has one, code stripping removed it: keep the type with [Preserve] or a link.xml)."));
+                }
+
+                types = concrete.Where(type => type.GetConstructor(Type.EmptyTypes) != null)
+                                .OrderBy(type => type.FullName, StringComparer.Ordinal)
+                                .ToArray();
 
                 Cache[baseType] = types;
 

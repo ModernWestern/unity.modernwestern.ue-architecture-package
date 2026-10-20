@@ -48,7 +48,7 @@ namespace ModernWestern.UEArchitecture.Tests
                 found |= subsystem.GetType().Name == "UnreferencedSubsystem";
             }
 
-            Assert.IsTrue(found, "Found by itself (and kept by the link.xml in stripped IL2CPP builds).");
+            Assert.IsTrue(found, "Found by itself, without being mentioned.");
         }
 
         [Test]
