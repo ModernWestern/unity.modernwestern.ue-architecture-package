@@ -1,0 +1,27 @@
+{
+    "name": "UEArchitecture.Samples.ArenaObserverVM",
+    "rootNamespace": "ModernWestern.UEArchitecture.Samples.ArenaObserverVM",
+    "references": [
+        "UEArchitecture.Runtime",
+        "ObserverVM",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UEA_SAMPLE_OBSERVERVM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.modernwestern.observer-vm",
+            "expression": "2.0.0",
+            "define": "UEA_SAMPLE_OBSERVERVM"
+        }
+    ],
+    "noEngineReferences": false
+}

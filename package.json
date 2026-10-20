@@ -20,5 +20,17 @@
   "repository": {
     "url": "https://github.com/ModernWestern/unity.modernwestern.ue-architecture-package.git",
     "type": "git"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Arena",
+      "description": "Start here. A small game built with the framework only: a GameMode with its GameState and PlayerState, a PlayerController driving a Pawn spawned at a PlayerStart, a HUD fed by Messages and Timers, a level subsystem that spawns coins and a game subsystem that keeps the best score across levels, which reopen behind a loading screen. Requires TextMeshPro.",
+      "path": "Samples~/Arena"
+    },
+    {
+      "displayName": "Arena + ObserverVM",
+      "description": "The same game with ObserverVM installed (com.modernwestern.observer-vm 2.0+): the GameState, PlayerState and best-score subsystem expose Observables, and the HUD is made of Widgets with no code that the HUD binds by itself to the right framework object. Without ObserverVM its scripts are skipped. Requires TextMeshPro.",
+      "path": "Samples~/ArenaObserverVM"
+    }
+  ]
 }
