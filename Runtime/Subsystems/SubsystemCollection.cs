@@ -42,8 +42,6 @@ namespace ModernWestern.UEArchitecture
     {
         private readonly List<TBase> _ordered = new();
 
-        private readonly List<ITickable> _tickables = new();
-
         private Subsystem[] _byIndex = Array.Empty<Subsystem>();
 
         private bool _initializing;
@@ -86,11 +84,6 @@ namespace ModernWestern.UEArchitecture
                 _byIndex[index] = subsystem;
 
                 _ordered.Add(subsystem);
-
-                if (subsystem is ITickable tickable)
-                {
-                    _tickables.Add(tickable);
-                }
             }
 
             _initializing = true;
@@ -109,6 +102,15 @@ namespace ModernWestern.UEArchitecture
 
             // Initialization order follows dependencies (Get inside Initialize), so teardown can use the reverse of it.
             _ordered.Sort(static (a, b) => a.InitializationOrder.CompareTo(b.InitializationOrder));
+
+            // Tickables run by tick group and order; equal orders keep the initialization order.
+            foreach (var subsystem in _ordered)
+            {
+                if (subsystem is ITickable tickable)
+                {
+                    TickRegistry.Add(tickable);
+                }
+            }
         }
 
         public T Get<T>() where T : TBase
@@ -137,28 +139,19 @@ namespace ModernWestern.UEArchitecture
             return index < _byIndex.Length ? _byIndex[index] : null;
         }
 
-        public void Tick(float deltaTime)
-        {
-            for (var i = 0; i < _tickables.Count; i++)
-            {
-                try
-                {
-                    _tickables[i].Tick(deltaTime);
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogException(exception);
-                }
-            }
-        }
-
         /// <summary>
         /// Deinitializes every subsystem (reverse order). Instances stay reachable through Get until <see cref="Clear"/>,
         /// so scripts destroyed while quitting do not run into nulls.
         /// </summary>
         public void Deinitialize()
         {
-            _tickables.Clear();
+            foreach (var subsystem in _ordered)
+            {
+                if (subsystem is ITickable tickable)
+                {
+                    TickRegistry.Remove(tickable);
+                }
+            }
 
             for (var i = _ordered.Count - 1; i >= 0; i--)
             {
@@ -176,8 +169,6 @@ namespace ModernWestern.UEArchitecture
         public void Clear()
         {
             _ordered.Clear();
-
-            _tickables.Clear();
 
             Array.Clear(_byIndex, 0, _byIndex.Length);
         }

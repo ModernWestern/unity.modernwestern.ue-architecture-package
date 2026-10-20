@@ -169,7 +169,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         private static string Describe_Internal(Subsystem subsystem, string kind)
         {
-            return subsystem is ITickable ? kind + "  ·  ticks every frame" : kind;
+            if (!(subsystem is ITickable))
+            {
+                return kind;
+            }
+
+            var tick = (TickAttribute)Attribute.GetCustomAttribute(subsystem.GetType(), typeof(TickAttribute)) ?? new TickAttribute();
+
+            var order = tick.Order != 0 ? $", order {tick.Order}" : string.Empty;
+
+            var unscaled = tick.Unscaled ? ", unscaled" : string.Empty;
+
+            return $"{kind}  ·  ticks in {tick.Group}{order}{unscaled}";
         }
 
         private void DrawObject_Internal(string key, object value, string summary, Object ping = null, string label = null)

@@ -6,14 +6,28 @@ using UnityEngine.PlayerLoop;
 namespace ModernWestern.UEArchitecture
 {
     /// <summary>
-    /// One entry in Unity's PlayerLoop, right after every MonoBehaviour.Update, that runs the timers and the tickable
-    /// subsystems. No GameObject, no per-frame allocation.
+    /// Four entries in Unity's PlayerLoop, one per tick group: before and after every MonoBehaviour.Update (the timers run
+    /// in the second one), after every LateUpdate and after every FixedUpdate. No GameObject, no per-frame allocation.
     /// </summary>
     internal static class FrameworkLoop
     {
+        private struct UEArchitectureEarlyTick
+        {
+        }
+
         private struct UEArchitectureTick
         {
         }
+
+        private struct UEArchitectureLateTick
+        {
+        }
+
+        private struct UEArchitectureFixedTick
+        {
+        }
+
+        private static readonly Type[] Markers = { typeof(UEArchitectureEarlyTick), typeof(UEArchitectureTick), typeof(UEArchitectureLateTick), typeof(UEArchitectureFixedTick) };
 
         public static void Install()
         {
@@ -21,23 +35,33 @@ namespace ModernWestern.UEArchitecture
 
             Remove_Internal(ref root);
 
+            Insert_Internal(ref root, typeof(Update), typeof(Update.ScriptRunBehaviourUpdate), false, typeof(UEArchitectureEarlyTick), EarlyTick_Internal);
+
+            Insert_Internal(ref root, typeof(Update), typeof(Update.ScriptRunBehaviourUpdate), true, typeof(UEArchitectureTick), Tick_Internal);
+
+            Insert_Internal(ref root, typeof(PreLateUpdate), typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate), true, typeof(UEArchitectureLateTick), LateTick_Internal);
+
+            Insert_Internal(ref root, typeof(FixedUpdate), typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate), true, typeof(UEArchitectureFixedTick), FixedTick_Internal);
+
+            PlayerLoop.SetPlayerLoop(root);
+        }
+
+        private static void Insert_Internal(ref PlayerLoopSystem root, Type phase, Type anchor, bool after, Type marker, PlayerLoopSystem.UpdateFunction update)
+        {
             for (var i = 0; i < root.subSystemList.Length; i++)
             {
-                if (root.subSystemList[i].type != typeof(Update))
+                if (root.subSystemList[i].type != phase)
                 {
                     continue;
                 }
 
-                var update = root.subSystemList[i];
+                var phaseSystem = root.subSystemList[i];
 
-                var systems = update.subSystemList ?? Array.Empty<PlayerLoopSystem>();
+                var systems = phaseSystem.subSystemList ?? Array.Empty<PlayerLoopSystem>();
 
-                var insertAt = Array.FindIndex(systems, static system => system.type == typeof(Update.ScriptRunBehaviourUpdate)) + 1;
+                var anchorIndex = Array.FindIndex(systems, system => system.type == anchor);
 
-                if (insertAt <= 0)
-                {
-                    insertAt = systems.Length;
-                }
+                var insertAt = anchorIndex < 0 ? systems.Length : after ? anchorIndex + 1 : anchorIndex;
 
                 var withTick = new PlayerLoopSystem[systems.Length + 1];
 
@@ -45,20 +69,18 @@ namespace ModernWestern.UEArchitecture
 
                 withTick[insertAt] = new PlayerLoopSystem
                 {
-                    type = typeof(UEArchitectureTick),
-                    updateDelegate = Tick_Internal
+                    type = marker,
+                    updateDelegate = update
                 };
 
                 Array.Copy(systems, insertAt, withTick, insertAt + 1, systems.Length - insertAt);
 
-                update.subSystemList = withTick;
+                phaseSystem.subSystemList = withTick;
 
-                root.subSystemList[i] = update;
+                root.subSystemList[i] = phaseSystem;
 
-                break;
+                return;
             }
-
-            PlayerLoop.SetPlayerLoop(root);
         }
 
         public static void Uninstall()
@@ -78,11 +100,22 @@ namespace ModernWestern.UEArchitecture
         {
             Timers.Tick_Internal(Time.timeAsDouble, Time.unscaledTimeAsDouble, Time.frameCount);
 
-            var deltaTime = Time.deltaTime;
+            TickRegistry.Run(TickGroup.Update, Time.deltaTime, Time.unscaledDeltaTime);
+        }
 
-            GameFramework.GameSubsystems.Tick(deltaTime);
+        private static void EarlyTick_Internal()
+        {
+            TickRegistry.Run(TickGroup.EarlyUpdate, Time.deltaTime, Time.unscaledDeltaTime);
+        }
 
-            World.Subsystems.Tick(deltaTime);
+        private static void LateTick_Internal()
+        {
+            TickRegistry.Run(TickGroup.LateUpdate, Time.deltaTime, Time.unscaledDeltaTime);
+        }
+
+        private static void FixedTick_Internal()
+        {
+            TickRegistry.Run(TickGroup.FixedUpdate, Time.fixedDeltaTime, Time.fixedUnscaledDeltaTime);
         }
 
         private static bool Remove_Internal(ref PlayerLoopSystem system)
@@ -98,7 +131,7 @@ namespace ModernWestern.UEArchitecture
 
             for (var i = 0; i < system.subSystemList.Length; i++)
             {
-                if (system.subSystemList[i].type == typeof(UEArchitectureTick))
+                if (Array.IndexOf(Markers, system.subSystemList[i].type) >= 0)
                 {
                     count--;
 
@@ -112,7 +145,7 @@ namespace ModernWestern.UEArchitecture
 
             if (count != system.subSystemList.Length)
             {
-                system.subSystemList = Array.FindAll(system.subSystemList, static each => each.type != typeof(UEArchitectureTick));
+                system.subSystemList = Array.FindAll(system.subSystemList, static each => Array.IndexOf(Markers, each.type) < 0);
             }
 
             return removed;

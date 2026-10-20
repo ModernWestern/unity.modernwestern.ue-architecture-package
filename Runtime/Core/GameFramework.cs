@@ -41,6 +41,8 @@ namespace ModernWestern.UEArchitecture
 
             GameSubsystems.Clear();
 
+            TickRegistry.Clear();
+
             FrameworkTypes.Reset();
 
             Instance = null;
