@@ -54,6 +54,49 @@ namespace ModernWestern.UEArchitecture.Tests
             _ = World.TimeSeconds;
         }
 
+        [UnityTest]
+        public IEnumerator LoopingOverPlayersAndStarts_DoesNotAllocate()
+        {
+            var mode = Template<TestGameMode>("Mode");
+
+            Set(mode, "defaultPawn", Template<TestPawn>("Pawn"));
+
+            var worldSettings = Create<WorldSettings>("World Settings");
+
+            Set(worldSettings, "gameModeOverride", mode);
+
+            OpenLevel(worldSettings, Create<PlayerStart>("Start"));
+
+            yield return null;
+
+            Loop_Internal();
+
+            Assert.That(Loop_Internal, Is.Not.AllocatingGCMemory());
+        }
+
+        private static void Loop_Internal()
+        {
+            foreach (var player in World.Players)
+            {
+                _ = player.Pawn;
+            }
+
+            foreach (var playerState in World.GameState.Players)
+            {
+                _ = playerState.PlayerId;
+            }
+
+            foreach (var start in PlayerStart.All)
+            {
+                _ = start.StartTag;
+            }
+
+            foreach (var subsystem in World.AllSubsystems)
+            {
+                _ = subsystem.IsInitialized;
+            }
+        }
+
         [Test]
         public void Broadcasting_DoesNotAllocate()
         {

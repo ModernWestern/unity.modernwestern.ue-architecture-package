@@ -48,6 +48,12 @@ namespace ModernWestern.UEArchitecture.Tests
         protected override void Deinitialize() => TestGate.Log.Add("Dependent.Deinitialize");
     }
 
+    // No script mentions this class: only the link.xml keeps it alive in IL2CPP builds with code stripping.
+    public sealed class UnreferencedSubsystem : GameInstanceSubsystem
+    {
+        protected override bool ShouldCreate() => TestGate.Enabled;
+    }
+
     public sealed class SkippedSubsystem : GameInstanceSubsystem
     {
         protected override bool ShouldCreate() => false;

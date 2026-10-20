@@ -56,12 +56,12 @@ namespace ModernWestern.UEArchitecture
         /// <summary>
         /// The players of the level (one per PlayerController), in the order they joined.
         /// </summary>
-        public static IReadOnlyList<PlayerController> Players => PlayersList;
+        public static ListView<PlayerController> Players => new(PlayersList);
 
         /// <summary>
         /// Every subsystem of the level, in initialization order.
         /// </summary>
-        public static IReadOnlyList<WorldSubsystem> AllSubsystems => Subsystems.All;
+        public static ListView<WorldSubsystem> AllSubsystems => Subsystems.All;
 
         /// <summary>
         /// A subsystem of the current level, e.g. <c>World.Get&lt;EnemyRegistry&gt;()</c>. An array read: call it as often as you like.

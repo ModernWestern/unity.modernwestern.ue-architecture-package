@@ -20,7 +20,7 @@ namespace ModernWestern.UEArchitecture
         /// <summary>
         /// Every player of the match, in the order they joined.
         /// </summary>
-        public IReadOnlyList<PlayerState> Players => _players;
+        public ListView<PlayerState> Players => new(_players);
 
         /// <summary>
         /// Seconds since the level began (scaled by Time.timeScale).

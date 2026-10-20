@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace ModernWestern.UEArchitecture
@@ -25,7 +24,7 @@ namespace ModernWestern.UEArchitecture
         /// <summary>
         /// Every subsystem of the game, in initialization order.
         /// </summary>
-        public static IReadOnlyList<GameInstanceSubsystem> Subsystems => GameFramework.GameSubsystems.All;
+        public static ListView<GameInstanceSubsystem> Subsystems => GameFramework.GameSubsystems.All;
 
         /// <summary>
         /// A subsystem of the game, e.g. <c>GameInstance.Get&lt;SaveSubsystem&gt;()</c>. An array read: call it as often as you like.

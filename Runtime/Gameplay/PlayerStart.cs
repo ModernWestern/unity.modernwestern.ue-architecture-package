@@ -18,7 +18,7 @@ namespace ModernWestern.UEArchitecture
         /// <summary>
         /// Every enabled PlayerStart of the loaded scenes, in the order they were enabled.
         /// </summary>
-        public static IReadOnlyList<PlayerStart> All => Enabled;
+        public static ListView<PlayerStart> All => new(Enabled);
 
         public string StartTag => startTag;
 

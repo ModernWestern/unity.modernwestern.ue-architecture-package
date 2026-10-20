@@ -37,6 +37,21 @@ namespace ModernWestern.UEArchitecture.Tests
         }
 
         [Test]
+        public void ASubsystemNoScriptMentions_IsCreatedToo()
+        {
+            Relaunch();
+
+            var found = false;
+
+            foreach (var subsystem in GameInstance.Subsystems)
+            {
+                found |= subsystem.GetType().Name == "UnreferencedSubsystem";
+            }
+
+            Assert.IsTrue(found, "Found by itself (and kept by the link.xml in stripped IL2CPP builds).");
+        }
+
+        [Test]
         public void ShouldCreateFalse_SkipsTheSubsystem()
         {
             Relaunch();

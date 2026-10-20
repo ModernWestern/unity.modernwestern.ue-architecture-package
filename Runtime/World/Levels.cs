@@ -28,7 +28,7 @@ namespace ModernWestern.UEArchitecture
         }
 #endif
 
-        private static LoadingScreen _loadingScreen;
+        private static readonly System.Collections.Generic.Dictionary<LoadingScreen, LoadingScreen> LoadingScreens = new();
 
         /// <summary>
         /// Raised when a level opened with <see cref="Open(string)"/> began play and its loading screen is gone.
@@ -45,11 +45,24 @@ namespace ModernWestern.UEArchitecture
             return Open(level?.Path);
         }
 
+        public static LevelLoad Open(SceneReference level, LoadingScreen loadingScreen)
+        {
+            return Open(level?.Path, loadingScreen);
+        }
+
         /// <summary>
         /// Ends the current level and opens another one (the old scenes are unloaded). Shows the loading screen picked in
         /// Project Settings > UE Architecture, if any. While a level is opening, new calls are ignored and return that load.
         /// </summary>
         public static LevelLoad Open(string scene)
+        {
+            return Open(scene, GameFramework.Settings != null ? GameFramework.Settings.LoadingScreen : null);
+        }
+
+        /// <summary>
+        /// Like <see cref="Open(string)"/> with a loading screen of your choice (a prefab), or none (null).
+        /// </summary>
+        public static LevelLoad Open(string scene, LoadingScreen loadingScreen)
         {
             if (IsOpening)
             {
@@ -67,7 +80,7 @@ namespace ModernWestern.UEArchitecture
 
             _opening = load;
 
-            GameInstance.Current.StartCoroutine(Open_Internal(load));
+            GameInstance.Current.StartCoroutine(Open_Internal(load, loadingScreen));
 
             return load;
         }
@@ -165,14 +178,14 @@ namespace ModernWestern.UEArchitecture
 #endif
             _opening = null;
 
-            _loadingScreen = null;
+            LoadingScreens.Clear();
 
             Opened = null;
         }
 
-        private static IEnumerator Open_Internal(LevelLoad load)
+        private static IEnumerator Open_Internal(LevelLoad load, LoadingScreen loadingScreen)
         {
-            var screen = LoadingScreen_Internal();
+            var screen = LoadingScreen_Internal(loadingScreen);
 
             var shownAt = Time.unscaledTime;
 
@@ -230,29 +243,30 @@ namespace ModernWestern.UEArchitecture
             opened?.Invoke(World.Scene);
         }
 
-        private static LoadingScreen LoadingScreen_Internal()
+        // One instance per loading screen prefab, kept across levels.
+        private static LoadingScreen LoadingScreen_Internal(LoadingScreen prefab)
         {
-            if (_loadingScreen != null)
-            {
-                return _loadingScreen;
-            }
-
-            var prefab = GameFramework.Settings != null ? GameFramework.Settings.LoadingScreen : null;
-
             if (prefab == null)
             {
                 return null;
             }
 
-            _loadingScreen = Object.Instantiate(prefab);
+            if (LoadingScreens.TryGetValue(prefab, out var screen) && screen != null)
+            {
+                return screen;
+            }
 
-            _loadingScreen.name = prefab.name;
+            screen = Object.Instantiate(prefab);
 
-            _loadingScreen.gameObject.SetActive(false);
+            screen.name = prefab.name;
 
-            Object.DontDestroyOnLoad(_loadingScreen.gameObject);
+            screen.gameObject.SetActive(false);
 
-            return _loadingScreen;
+            Object.DontDestroyOnLoad(screen.gameObject);
+
+            LoadingScreens[prefab] = screen;
+
+            return screen;
         }
 
         private static AsyncOperation Load_Internal(string scene, LoadSceneMode mode)

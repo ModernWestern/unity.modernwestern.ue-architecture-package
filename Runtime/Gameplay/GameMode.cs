@@ -224,14 +224,37 @@ namespace ModernWestern.UEArchitecture
         }
 
         /// <summary>
-        /// Picks where a player spawns. By default: the PlayerStarts in turn (player 1 the first, player 2 the second...).
-        /// Return null to spawn at the GameMode's position.
+        /// Picks where a player spawns. By default: the PlayerStarts of the level in turn (player 1 the first, player 2 the
+        /// second...), or of any loaded scene if the level has none. Return null to spawn at the GameMode's position.
         /// </summary>
         protected virtual PlayerStart FindPlayerStart(PlayerController player)
         {
-            var starts = PlayerStart.All;
+            var levelStarts = 0;
 
-            return starts.Count > 0 ? starts[player.PlayerIndex % starts.Count] : null;
+            foreach (var start in PlayerStart.All)
+            {
+                if (start.gameObject.scene == World.Scene)
+                {
+                    levelStarts++;
+                }
+            }
+
+            var pick = player.PlayerIndex % Mathf.Max(1, levelStarts > 0 ? levelStarts : PlayerStart.All.Count);
+
+            foreach (var start in PlayerStart.All)
+            {
+                if (levelStarts > 0 && start.gameObject.scene != World.Scene)
+                {
+                    continue;
+                }
+
+                if (pick-- == 0)
+                {
+                    return start;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

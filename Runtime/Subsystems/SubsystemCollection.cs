@@ -48,7 +48,7 @@ namespace ModernWestern.UEArchitecture
 
         private bool _initializing;
 
-        public IReadOnlyList<TBase> All => _ordered;
+        public ListView<TBase> All => new(_ordered);
 
         public int Count => _ordered.Count;
 
