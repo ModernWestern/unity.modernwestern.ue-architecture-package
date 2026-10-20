@@ -43,6 +43,10 @@ namespace ModernWestern.UEArchitecture
 
             TickRegistry.Clear();
 
+#if UEA_NAVIGATION
+            PathFollowing.Reset_Internal();
+#endif
+
             FrameworkTypes.Reset();
 
             Instance = null;

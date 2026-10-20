@@ -32,7 +32,7 @@ namespace ModernWestern.UEArchitecture
     /// Data that must survive death belongs in the PlayerState, not here.
     /// </summary>
     [DisallowMultipleComponent]
-    public class Pawn : MonoBehaviour
+    public partial class Pawn : MonoBehaviour
     {
         [Header("AI")]
         [SerializeField, Tooltip("When this Pawn creates its AI controller by itself.")]
@@ -145,6 +145,9 @@ namespace ModernWestern.UEArchitecture
 
         internal void PossessedBy_Internal(Controller controller)
         {
+#if UEA_NAVIGATION
+            AbortMove_Internal();
+#endif
             _controller = controller;
 
             OnPossessed(controller);
@@ -152,6 +155,10 @@ namespace ModernWestern.UEArchitecture
 
         internal void UnPossessed_Internal()
         {
+#if UEA_NAVIGATION
+            // Before letting go, so the controller that is leaving hears how its move ended.
+            AbortMove_Internal();
+#endif
             _controller = null;
 
             OnUnPossessed();

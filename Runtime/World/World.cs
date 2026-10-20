@@ -267,6 +267,11 @@ namespace ModernWestern.UEArchitecture
                 Guard_Internal(subsystem.LevelEndingPlay_Internal);
             }
 
+#if UEA_NAVIGATION
+            // Moves end before their controllers' EndPlay, while every object is still alive.
+            PathFollowing.AbortAll_Internal(MoveReason.LevelEnded);
+#endif
+
             for (var i = AIList.Count - 1; i >= 0; i--)
             {
                 if (AIList[i] != null)

@@ -11,8 +11,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 {
     /// <summary>
     /// Window > UE Architecture > Debugger: the running framework at a glance, like Unreal's gameplay debugger. The game and
-    /// its subsystems, the current level with its GameMode, GameState and players, the level's subsystems, the active timers
-    /// and who listens to which message. Expand anything to see its public values, live.
+    /// its subsystems, the current level with its GameMode, GameState and players, the level's subsystems, the moves in
+    /// progress, the active timers and who listens to which message. Expand anything to see its public values, live.
     /// </summary>
     internal sealed class FrameworkDebuggerWindow : EditorWindow
     {
@@ -59,6 +59,10 @@ namespace ModernWestern.UEArchitecture.EditorTools
             DrawGame_Internal();
 
             DrawLevel_Internal();
+
+#if UEA_NAVIGATION
+            DrawNavigation_Internal();
+#endif
 
             DrawTimersAndMessages_Internal();
 
@@ -132,7 +136,16 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 var bot = ai.PlayerState != null ? ai.PlayerState.PlayerName + "  ·  " : string.Empty;
 
-                DrawObject_Internal("ai/" + ai.GetInstanceID(), ai, bot + (ai.Pawn != null ? "controls " + ai.Pawn.name : "no Pawn"), ai, "AI  " + ai.GetType().Name);
+                var summary = bot + (ai.Pawn != null ? "controls " + ai.Pawn.name : "no Pawn");
+
+#if UEA_NAVIGATION
+                if (ai.MoveStatus != MoveStatus.Idle)
+                {
+                    summary += "  ·  " + ai.MoveStatus;
+                }
+#endif
+
+                DrawObject_Internal("ai/" + ai.GetInstanceID(), ai, summary, ai, "AI  " + ai.GetType().Name);
             }
 
             var worldTypes = World.AllSubsystems.Select(subsystem => subsystem.GetType()).ToArray();
@@ -142,6 +155,52 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 DrawObject_Internal("world/" + subsystem.GetType().FullName, subsystem, Describe_Internal(subsystem, "level subsystem"), null, UEArchitectureStyles.TypeName(subsystem.GetType(), worldTypes));
             }
         }
+
+#if UEA_NAVIGATION
+        private void DrawNavigation_Internal()
+        {
+            var moving = NavigationSystem.Moving;
+
+            UEArchitectureStyles.Section(moving.Count == 1 ? "Navigation  ·  1 move" : $"Navigation  ·  {moving.Count} moves");
+
+            if (moving.Count == 0)
+            {
+                EditorGUILayout.LabelField("No moves in progress.", UEArchitectureStyles.MutedLabel);
+
+                return;
+            }
+
+            foreach (var pathFollowing in moving)
+            {
+                if (pathFollowing == null)
+                {
+                    continue;
+                }
+
+                var target = pathFollowing.Target;
+
+                var destination = target != null ? target.name : $"({pathFollowing.Destination.x:0.0}, {pathFollowing.Destination.y:0.0}, {pathFollowing.Destination.z:0.0})";
+
+                var still = pathFollowing.SecondsWithoutProgress;
+
+                var stuck = still >= 0.5f ? $"  ·  {still:0.0} s without progress" : string.Empty;
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField(pathFollowing.name, GUILayout.Width(280f));
+
+                    EditorGUILayout.LabelField($"{pathFollowing.Status} to {destination}{stuck}", GUILayout.ExpandWidth(true));
+
+                    if (GUILayout.Button("Select", EditorStyles.miniButton, GUILayout.Width(52)))
+                    {
+                        Selection.activeObject = pathFollowing.gameObject;
+
+                        EditorGUIUtility.PingObject(pathFollowing.gameObject);
+                    }
+                }
+            }
+        }
+#endif
 
         private void DrawTimersAndMessages_Internal()
         {
