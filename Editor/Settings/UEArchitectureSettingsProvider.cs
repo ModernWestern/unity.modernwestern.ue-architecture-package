@@ -145,7 +145,9 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         private static void DrawTypes_Internal(string label, Type baseType)
         {
-            var types = TypeCache.GetTypesDerivedFrom(baseType).Where(type => !type.IsAbstract && !IsTestType_Internal(type)).Select(type => type.Name).OrderBy(name => name).ToArray();
+            var found = TypeCache.GetTypesDerivedFrom(baseType).Where(type => !type.IsAbstract && !IsTestType_Internal(type)).ToArray();
+
+            var types = found.Select(type => UEArchitectureStyles.TypeName(type, found)).OrderBy(name => name).ToArray();
 
             UEArchitectureStyles.Row(label, types.Length == 0 ? "none" : string.Join(", ", types), types.Length == 0);
         }

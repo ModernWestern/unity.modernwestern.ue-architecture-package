@@ -90,6 +90,24 @@ namespace ModernWestern.UEArchitecture.EditorTools
         public static Vector2 ChipSize(string text) => Chip.CalcSize(new GUIContent(text));
 
         /// <summary>
+        /// A type's name, plus the last part of its namespace when another type of the list has the same name
+        /// (e.g. two samples with a BestScore class: "BestScore (Arena)" and "BestScore (ArenaObserverVM)").
+        /// </summary>
+        public static string TypeName(System.Type type, System.Collections.Generic.IEnumerable<System.Type> among)
+        {
+            var duplicated = System.Linq.Enumerable.Count(among, other => other.Name == type.Name) > 1;
+
+            if (!duplicated || string.IsNullOrEmpty(type.Namespace))
+            {
+                return type.Name;
+            }
+
+            var dot = type.Namespace.LastIndexOf('.');
+
+            return $"{type.Name} ({type.Namespace.Substring(dot + 1)})";
+        }
+
+        /// <summary>
         /// A notice with an optional fix button. Returns true when the button was pressed.
         /// </summary>
         public static bool Notice(string message, MessageType type, string button = null)

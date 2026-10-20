@@ -78,9 +78,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             DrawObject_Internal("GameInstance", GameInstance.Current, GameInstance.Current != null ? GameInstance.Current.GetType().Name : "none");
 
+            var gameTypes = GameInstance.Subsystems.Select(subsystem => subsystem.GetType()).ToArray();
+
             foreach (var subsystem in GameInstance.Subsystems)
             {
-                DrawObject_Internal("game/" + subsystem.GetType().FullName, subsystem, Describe_Internal(subsystem));
+                DrawObject_Internal("game/" + subsystem.GetType().FullName, subsystem, Describe_Internal(subsystem, "game subsystem"), null, UEArchitectureStyles.TypeName(subsystem.GetType(), gameTypes));
             }
 
             if (GameInstance.Subsystems.Count == 0)
@@ -121,9 +123,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 DrawObject_Internal("player/" + player.PlayerIndex, playerState, $"{playerState?.PlayerName}  ·  {summary}", player);
             }
 
+            var worldTypes = World.AllSubsystems.Select(subsystem => subsystem.GetType()).ToArray();
+
             foreach (var subsystem in World.AllSubsystems)
             {
-                DrawObject_Internal("world/" + subsystem.GetType().FullName, subsystem, Describe_Internal(subsystem));
+                DrawObject_Internal("world/" + subsystem.GetType().FullName, subsystem, Describe_Internal(subsystem, "level subsystem"), null, UEArchitectureStyles.TypeName(subsystem.GetType(), worldTypes));
             }
         }
 
@@ -151,33 +155,28 @@ namespace ModernWestern.UEArchitecture.EditorTools
             }
         }
 
-        private static string Describe_Internal(Subsystem subsystem)
+        private static string Describe_Internal(Subsystem subsystem, string kind)
         {
-            var name = subsystem.GetType().Name;
-
-            return subsystem is ITickable ? name + "  ·  ticks" : name;
+            return subsystem is ITickable ? kind + "  ·  ticks every frame" : kind;
         }
 
-        private void DrawObject_Internal(string key, object value, string summary, Object ping = null)
+        private void DrawObject_Internal(string key, object value, string summary, Object ping = null, string label = null)
         {
-            var label = key.Contains('/') ? key.Substring(0, key.IndexOf('/')) : key;
-
-            if (key.StartsWith("player/", StringComparison.Ordinal))
+            if (label == null)
             {
-                label = "Player " + (int.Parse(key.Substring(7)) + 1);
-            }
-            else if (key.StartsWith("game/", StringComparison.Ordinal) || key.StartsWith("world/", StringComparison.Ordinal))
-            {
-                label = "Subsystem";
+                label = key.StartsWith("player/", StringComparison.Ordinal) ? "Player " + (int.Parse(key.Substring(7)) + 1) : key;
             }
 
             var expanded = _expanded.Contains(key);
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                var now = EditorGUILayout.Foldout(expanded, label, true);
+                // Fixed first column, so summaries line up whether or not the row has a Select button.
+                var foldoutRect = GUILayoutUtility.GetRect(new GUIContent(label), EditorStyles.foldout, GUILayout.Width(280f));
 
-                EditorGUILayout.LabelField(summary);
+                var now = EditorGUI.Foldout(foldoutRect, expanded, label, true);
+
+                EditorGUILayout.LabelField(summary, GUILayout.ExpandWidth(true));
 
                 var target = ping != null ? ping : value as Object;
 
