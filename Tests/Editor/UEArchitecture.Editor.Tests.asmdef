@@ -1,0 +1,33 @@
+{
+    "name": "UEArchitecture.Editor.Tests",
+    "rootNamespace": "ModernWestern.UEArchitecture.EditorTools.Tests",
+    "references": [
+        "UEArchitecture.Runtime",
+        "UEArchitecture.Editor",
+        "UEArchitecture.Tests",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "UEA_TEST_FRAMEWORK"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.test-framework",
+            "expression": "1.0.0",
+            "define": "UEA_TEST_FRAMEWORK"
+        }
+    ],
+    "noEngineReferences": false
+}

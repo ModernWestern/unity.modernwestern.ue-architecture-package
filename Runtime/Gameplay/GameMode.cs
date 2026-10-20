@@ -36,6 +36,8 @@ namespace ModernWestern.UEArchitecture
 
         private bool _hasStartedPlay;
 
+        private bool _warnedNoStart;
+
         public GameState GameState { get; private set; }
 
         public bool HasStartedPlay => _hasStartedPlay;
@@ -143,6 +145,14 @@ namespace ModernWestern.UEArchitecture
             }
 
             var start = FindPlayerStart(player);
+
+            if (start == null && !_warnedNoStart)
+            {
+                _warnedNoStart = true;
+
+                Debug.LogWarning($"[UEArchitecture] {name}: the level has no PlayerStart, so players spawn where the GameMode is. " +
+                                 "Add one with GameObject > UE Architecture > Player Start.", this);
+            }
 
             if (player.Pawn != null)
             {
@@ -321,6 +331,8 @@ namespace ModernWestern.UEArchitecture
             _nextPlayerId = 0;
 
             _hasStartedPlay = false;
+
+            _warnedNoStart = false;
 
             GameState = CreateGameState() ?? new GameState();
 
