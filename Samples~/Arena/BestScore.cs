@@ -1,32 +1,42 @@
-using UnityEngine;
+using System;
 
 namespace ModernWestern.UEArchitecture.Samples.Arena
 {
     // A game subsystem: created by itself, alive across levels. Get it anywhere with GameInstance.Get<BestScore>().
+    // The best score lives in a save game, so it survives quitting the game.
     public sealed class BestScore : GameInstanceSubsystem
     {
-        private const string Key = "UEArchitecture.Samples.Arena.BestScore";
+        private const string Slot = "UE Architecture Arena";
 
-        public int Best { get; private set; }
+        private ArenaSave _save;
+
+        public int Best => _save.bestScore;
 
         protected override void Initialize()
         {
-            Best = PlayerPrefs.GetInt(Key, 0);
+            _save = SaveGames.Load<ArenaSave>(Slot) ?? new ArenaSave();
         }
 
         // True when it is a new best score.
         public bool Submit(int coins)
         {
-            if (coins <= Best)
+            if (coins <= _save.bestScore)
             {
                 return false;
             }
 
-            Best = coins;
+            _save.bestScore = coins;
 
-            PlayerPrefs.SetInt(Key, coins);
+            SaveGames.Save(_save, Slot);
 
             return true;
         }
+    }
+
+    // What the Arena saves (public fields, the way Unity serializes them).
+    [Serializable]
+    public sealed class ArenaSave : SaveGame
+    {
+        public int bestScore;
     }
 }

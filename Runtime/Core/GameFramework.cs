@@ -73,6 +73,11 @@ namespace ModernWestern.UEArchitecture
 
             Settings = settings != null ? settings : UEArchitectureSettings.Current;
 
+            foreach (var tag in Settings.GameplayTags)
+            {
+                GameplayTagRegistry.Register(tag);
+            }
+
             FrameworkLoop.Install();
 
             Instance = CreateGameInstance_Internal(Settings.GameInstancePrefab);

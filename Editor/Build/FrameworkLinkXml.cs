@@ -10,8 +10,8 @@ using UnityEditor.UnityLinker;
 namespace ModernWestern.UEArchitecture.EditorTools
 {
     /// <summary>
-    /// Subsystems are created by reflection, so code stripping (IL2CPP, Medium/High) could remove them because no script
-    /// mentions them. On every build this keeps every subsystem class of the project.
+    /// Subsystems are created by reflection and save games are filled by the serializer, so code stripping (IL2CPP,
+    /// Medium/High) could remove them, their constructors or their fields. On every build this keeps them whole.
     /// </summary>
     internal sealed class FrameworkLinkXml : IUnityLinkerProcessor
     {
@@ -29,12 +29,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
         }
 
         /// <summary>
-        /// The link.xml content: every concrete subsystem class, preserved whole.
+        /// The link.xml content: every concrete subsystem and save game class, preserved whole.
         /// </summary>
         public static string Build()
         {
             var types = TypeCache.GetTypesDerivedFrom<Subsystem>()
+                                 .Concat(TypeCache.GetTypesDerivedFrom<SaveGame>())
                                  .Where(type => !type.IsAbstract && !type.ContainsGenericParameters)
+                                 .Distinct()
                                  .ToArray();
 
             var xml = new StringBuilder("<linker>\n");

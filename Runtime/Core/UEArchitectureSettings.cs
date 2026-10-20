@@ -26,6 +26,9 @@ namespace ModernWestern.UEArchitecture
                                  "Turn it off only if you start it yourself with GameInstance.Launch().")]
         private bool startAutomatically = true;
 
+        [SerializeField, Tooltip("The gameplay tags of the project, like \"Status.Burning\". The Inspector offers them in tag fields.")]
+        private string[] gameplayTags = System.Array.Empty<string>();
+
         private static UEArchitectureSettings _defaults;
 
         public GameInstance GameInstancePrefab => gameInstance;
@@ -35,6 +38,8 @@ namespace ModernWestern.UEArchitecture
         public LoadingScreen LoadingScreen => loadingScreen;
 
         public bool StartAutomatically => startAutomatically;
+
+        public string[] GameplayTags => gameplayTags ?? System.Array.Empty<string>();
 
         /// <summary>
         /// The project's settings, or the defaults if the project has none.

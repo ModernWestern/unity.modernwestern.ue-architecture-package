@@ -23,7 +23,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 label = "UE Architecture",
                 guiHandler = Draw_Internal,
-                keywords = new[] { "GameInstance", "GameMode", "Subsystem", "Loading Screen", "Unreal" }
+                keywords = new[] { "GameInstance", "GameMode", "Subsystem", "Loading Screen", "Gameplay Tags", "Save", "Unreal" }
             };
         }
 
@@ -123,6 +123,17 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             EditorGUILayout.PropertyField(serialized.FindProperty("loadingScreen"), new GUIContent("Loading Screen", "Shown by Levels.Open while a level loads."));
 
+            UEArchitectureStyles.Section("Gameplay Tags");
+
+            EditorGUILayout.LabelField("One per line, like \"Status.Burning\": parents (\"Status\") come by themselves. Tag fields in the Inspector offer these.", UEArchitectureStyles.MutedLabel);
+
+            EditorGUILayout.PropertyField(serialized.FindProperty("gameplayTags"), new GUIContent("Tags"), true);
+
+            foreach (var tag in settings.GameplayTags.Where(tag => !GameplayTagRegistry.IsValidName(tag)))
+            {
+                EditorGUILayout.HelpBox($"\"{tag}\" is not a valid tag: use letters, digits and underscores separated by dots.", MessageType.Warning);
+            }
+
             serialized.ApplyModifiedProperties();
 
             EditorGUILayout.Space(4);
@@ -130,6 +141,43 @@ namespace ModernWestern.UEArchitecture.EditorTools
             EditorGUILayout.LabelField(path, UEArchitectureStyles.MutedLabel);
 
             DrawSubsystems_Internal();
+
+            DrawSaveGames_Internal();
+        }
+
+        private static void DrawSaveGames_Internal()
+        {
+            UEArchitectureStyles.Section("Save games");
+
+            UEArchitectureStyles.Row("Folder", SaveGames.Folder);
+
+            var slots = SaveGames.Slots();
+
+            UEArchitectureStyles.Row("Slots", slots.Length == 0 ? "none" : string.Join(", ", slots), slots.Length == 0);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.FlexibleSpace();
+
+                if (GUILayout.Button("Open folder", GUILayout.Width(110)))
+                {
+                    System.IO.Directory.CreateDirectory(SaveGames.Folder);
+
+                    EditorUtility.RevealInFinder(SaveGames.Folder);
+                }
+
+                using (new EditorGUI.DisabledScope(slots.Length == 0))
+                {
+                    if (GUILayout.Button("Delete all", GUILayout.Width(110)) &&
+                        EditorUtility.DisplayDialog("Delete every save game?", $"{slots.Length} slot(s) in {SaveGames.Folder} will be deleted.", "Delete", "Cancel"))
+                    {
+                        foreach (var slot in slots)
+                        {
+                            SaveGames.Delete(slot);
+                        }
+                    }
+                }
+            }
         }
 
         private static void DrawSubsystems_Internal()
