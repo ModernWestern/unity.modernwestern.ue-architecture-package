@@ -89,6 +89,30 @@ namespace ModernWestern.UEArchitecture
     public abstract class GameInstanceSubsystem : Subsystem
     {
         public GameInstance GameInstance => GameInstance.Current;
+
+        /// <summary>
+        /// Called every time a level begins play (players spawned, level subsystems ready).
+        /// </summary>
+        protected virtual void OnLevelBeganPlay()
+        {
+        }
+
+        /// <summary>
+        /// Called when the current level is about to end, with everything still alive.
+        /// </summary>
+        protected virtual void OnLevelEndingPlay()
+        {
+        }
+
+        internal void LevelBeganPlay_Internal()
+        {
+            OnLevelBeganPlay();
+        }
+
+        internal void LevelEndingPlay_Internal()
+        {
+            OnLevelEndingPlay();
+        }
     }
 
     /// <summary>

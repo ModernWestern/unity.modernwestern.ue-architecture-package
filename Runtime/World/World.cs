@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 
 namespace ModernWestern.UEArchitecture
 {
@@ -15,6 +16,8 @@ namespace ModernWestern.UEArchitecture
         internal static readonly SubsystemCollection<WorldSubsystem> Subsystems = new();
 
         private static readonly List<PlayerController> PlayersList = new();
+
+        private static readonly List<AIController> AIList = new();
 
         private static double _beginTime;
 
@@ -59,9 +62,37 @@ namespace ModernWestern.UEArchitecture
         public static ListView<PlayerController> Players => new(PlayersList);
 
         /// <summary>
+        /// The AI controllers of the level, in the order they took their first Pawn.
+        /// </summary>
+        public static ListView<AIController> AIControllers => new(AIList);
+
+        /// <summary>
         /// Every subsystem of the level, in initialization order.
         /// </summary>
         public static ListView<WorldSubsystem> AllSubsystems => Subsystems.All;
+
+        /// <summary>
+        /// Spawns a Pawn into the level, like Unreal's SpawnActor: if its Auto Possess AI includes "Spawned", it gets its AI
+        /// controller right away. Use it for enemies and NPCs created at runtime.
+        /// </summary>
+        public static T SpawnPawn<T>(T prefab, Vector3 position, Quaternion rotation) where T : Pawn
+        {
+            var pawn = Object.Instantiate(prefab, position, rotation);
+
+            pawn.name = prefab.name;
+
+            if (Scene.IsValid() && Scene.isLoaded && pawn.gameObject.scene != Scene)
+            {
+                SceneManager.MoveGameObjectToScene(pawn.gameObject, Scene);
+            }
+
+            if (pawn.AutoPossesses_Internal(true))
+            {
+                pawn.SpawnDefaultController();
+            }
+
+            return pawn;
+        }
 
         /// <summary>
         /// A subsystem of the current level, e.g. <c>World.Get&lt;EnemyRegistry&gt;()</c>. An array read: call it as often as you like.
@@ -126,6 +157,34 @@ namespace ModernWestern.UEArchitecture
             PlayersList.Remove(player);
         }
 
+        internal static void AddAI_Internal(AIController ai)
+        {
+            AIList.Add(ai);
+
+            if (GameMode != null && ai.WantsPlayerState)
+            {
+                GameMode.AddBot_Internal(ai);
+            }
+
+            if (HasBegunPlay)
+            {
+                Guard_Internal(ai.BeginPlay_Internal);
+            }
+        }
+
+        internal static void RemoveAI_Internal(AIController ai)
+        {
+            if (!AIList.Remove(ai))
+            {
+                return;
+            }
+
+            if (!ReferenceEquals(GameMode, null) && ai.PlayerState != null)
+            {
+                GameMode.RemoveBot_Internal(ai);
+            }
+        }
+
         internal static void Begin_Internal(Scene scene)
         {
             if (HasBegunPlay)
@@ -148,9 +207,21 @@ namespace ModernWestern.UEArchitecture
                 Guard_Internal(GameMode.StartPlay_Internal);
             }
 
+            PossessPlacedPawns_Internal(scene);
+
             foreach (var subsystem in Subsystems.All)
             {
                 Guard_Internal(subsystem.WorldBeginPlay_Internal);
+            }
+
+            foreach (var subsystem in GameFramework.GameSubsystems.All)
+            {
+                Guard_Internal(subsystem.LevelBeganPlay_Internal);
+            }
+
+            if (GameFramework.Instance != null)
+            {
+                Guard_Internal(GameFramework.Instance.LevelBeganPlay_Internal);
             }
 
             Raise_Internal(BeganPlay);
@@ -186,6 +257,24 @@ namespace ModernWestern.UEArchitecture
 
             Raise_Internal(EndingPlay);
 
+            if (GameFramework.Instance != null)
+            {
+                Guard_Internal(GameFramework.Instance.LevelEndingPlay_Internal);
+            }
+
+            foreach (var subsystem in GameFramework.GameSubsystems.All)
+            {
+                Guard_Internal(subsystem.LevelEndingPlay_Internal);
+            }
+
+            for (var i = AIList.Count - 1; i >= 0; i--)
+            {
+                if (AIList[i] != null)
+                {
+                    Guard_Internal(AIList[i].EndPlay_Internal);
+                }
+            }
+
             // If the scene was unloaded directly (SceneManager.LoadScene), the GameMode's GameObject is already destroyed,
             // but its GameState and PlayerStates (plain objects) still need their EndPlay.
             if (!ReferenceEquals(GameMode, null))
@@ -212,6 +301,8 @@ namespace ModernWestern.UEArchitecture
 
             PlayersList.Clear();
 
+            AIList.Clear();
+
             GameMode = null;
 
             HasBegunPlay = false;
@@ -227,6 +318,8 @@ namespace ModernWestern.UEArchitecture
 
             PlayersList.Clear();
 
+            AIList.Clear();
+
             GameMode = null;
 
             HasBegunPlay = false;
@@ -238,6 +331,26 @@ namespace ModernWestern.UEArchitecture
             BeganPlay = null;
 
             EndingPlay = null;
+        }
+
+        // Pawns placed in the level with Auto Possess AI get their controller as the level begins.
+        private static void PossessPlacedPawns_Internal(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                return;
+            }
+
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                foreach (var pawn in root.GetComponentsInChildren<Pawn>())
+                {
+                    if (pawn.Controller == null && pawn.AutoPossesses_Internal(false))
+                    {
+                        pawn.SpawnDefaultController();
+                    }
+                }
+            }
         }
 
         private static void Guard_Internal(Action action)

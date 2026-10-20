@@ -150,16 +150,16 @@ namespace ModernWestern.UEArchitecture
 
             HUD.Initialized_Internal += BindHUD;
 
-            PlayerController.AnyPawnChanged_Internal -= RebindPawnWidgets_Internal;
+            Controller.AnyPawnChanged_Internal -= RebindPawnWidgets_Internal;
 
-            PlayerController.AnyPawnChanged_Internal += RebindPawnWidgets_Internal;
+            Controller.AnyPawnChanged_Internal += RebindPawnWidgets_Internal;
 
             _ = Canonical;
         }
 
-        private static void RebindPawnWidgets_Internal(PlayerController player)
+        private static void RebindPawnWidgets_Internal(Controller controller)
         {
-            if (player == null || player.HUD == null)
+            if (!(controller is PlayerController player) || player == null || player.HUD == null)
             {
                 return;
             }

@@ -57,6 +57,22 @@ namespace ModernWestern.UEArchitecture
         {
         }
 
+        /// <summary>
+        /// Called every time a level begins play: its GameMode spawned the players and its subsystems exist.
+        /// The first call is the moment the game really starts (like Unreal's OnStart).
+        /// </summary>
+        protected virtual void OnLevelBeganPlay()
+        {
+        }
+
+        /// <summary>
+        /// Called when the current level is about to end (another level opens, or the game quits). Everything is still
+        /// alive here: a good moment to save.
+        /// </summary>
+        protected virtual void OnLevelEndingPlay()
+        {
+        }
+
         internal void Init_Internal()
         {
             Init();
@@ -65,6 +81,16 @@ namespace ModernWestern.UEArchitecture
         internal void Shutdown_Internal()
         {
             Shutdown();
+        }
+
+        internal void LevelBeganPlay_Internal()
+        {
+            OnLevelBeganPlay();
+        }
+
+        internal void LevelEndingPlay_Internal()
+        {
+            OnLevelEndingPlay();
         }
     }
 }

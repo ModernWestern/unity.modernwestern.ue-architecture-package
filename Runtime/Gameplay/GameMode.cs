@@ -32,6 +32,10 @@ namespace ModernWestern.UEArchitecture
 
         private readonly List<PlayerController> _ownedPlayers = new();
 
+        private readonly List<AIController> _bots = new();
+
+        private int _botCount;
+
         private int _nextPlayerId;
 
         private bool _hasStartedPlay;
@@ -330,6 +334,36 @@ namespace ModernWestern.UEArchitecture
             }
         }
 
+        internal void AddBot_Internal(AIController bot)
+        {
+            var playerState = CreatePlayerState() ?? new PlayerState();
+
+            playerState.Init_Internal(bot, ++_nextPlayerId, "Bot " + ++_botCount);
+
+            bot.SetPlayerState_Internal(playerState);
+
+            _bots.Add(bot);
+
+            GameState.AddPlayer_Internal(playerState);
+
+            if (_hasStartedPlay)
+            {
+                Guard_Internal(playerState.BeginPlay_Internal);
+            }
+        }
+
+        internal void RemoveBot_Internal(AIController bot)
+        {
+            if (!_bots.Remove(bot))
+            {
+                return;
+            }
+
+            Guard_Internal(bot.PlayerState.EndPlay_Internal);
+
+            GameState.RemovePlayer_Internal(bot.PlayerState);
+        }
+
         internal void EndPlay_Internal()
         {
             Guard_Internal(OnEndPlay);
@@ -338,6 +372,16 @@ namespace ModernWestern.UEArchitecture
             {
                 EndPlayFor_Internal(_ownedPlayers[i]);
             }
+
+            for (var i = _bots.Count - 1; i >= 0; i--)
+            {
+                if (!ReferenceEquals(_bots[i], null) && _bots[i].PlayerState != null)
+                {
+                    Guard_Internal(_bots[i].PlayerState.EndPlay_Internal);
+                }
+            }
+
+            _bots.Clear();
 
             if (GameState != null)
             {
@@ -350,6 +394,10 @@ namespace ModernWestern.UEArchitecture
         private void InitGame_Internal()
         {
             _ownedPlayers.Clear();
+
+            _bots.Clear();
+
+            _botCount = 0;
 
             _nextPlayerId = 0;
 

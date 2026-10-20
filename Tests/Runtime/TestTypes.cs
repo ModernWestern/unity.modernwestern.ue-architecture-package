@@ -23,6 +23,10 @@ namespace ModernWestern.UEArchitecture.Tests
 
         protected override void Deinitialize() => TestGate.Log.Add("First.Deinitialize");
 
+        protected override void OnLevelBeganPlay() => TestGate.Log.Add("First.LevelBeganPlay");
+
+        protected override void OnLevelEndingPlay() => TestGate.Log.Add("First.LevelEndingPlay");
+
         public void Tick(float deltaTime)
         {
             Ticks++;

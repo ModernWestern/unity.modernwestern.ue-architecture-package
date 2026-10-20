@@ -1,30 +1,69 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ModernWestern.UEArchitecture
 {
     /// <summary>
-    /// Something a player can control, like Unreal's APawn: a character, a car, a ship. The GameMode spawns the default Pawn
-    /// of each player at a PlayerStart and the player's PlayerController possesses it. Data that must survive death belongs
-    /// in the PlayerState, not here.
+    /// When a Pawn gets an AI controller by itself. Like Unreal's Auto Possess AI.
+    /// </summary>
+    public enum AutoPossessAI
+    {
+        /// <summary>
+        /// Never: a player or your code possesses it.
+        /// </summary>
+        Disabled,
+
+        /// <summary>
+        /// When it is placed in a level, as the level begins.
+        /// </summary>
+        PlacedInWorld,
+
+        /// <summary>
+        /// When it is spawned with <see cref="World.SpawnPawn{T}"/>.
+        /// </summary>
+        Spawned,
+
+        PlacedInWorldOrSpawned
+    }
+
+    /// <summary>
+    /// Something a player or an AI can control, like Unreal's APawn: a character, a car, an enemy. The GameMode spawns each
+    /// player's default Pawn at a PlayerStart; AI Pawns get their <see cref="AIController"/> by themselves (Auto Possess AI).
+    /// Data that must survive death belongs in the PlayerState, not here.
     /// </summary>
     [DisallowMultipleComponent]
     public class Pawn : MonoBehaviour
     {
-        private PlayerController _controller;
+        [Header("AI")]
+        [SerializeField, Tooltip("When this Pawn creates its AI controller by itself.")]
+        private AutoPossessAI autoPossessAI = AutoPossessAI.Disabled;
+
+        [SerializeField, Tooltip("Prefab with the AIController for this Pawn. Empty = a plain AIController.")]
+        private AIController aiController;
+
+        private Controller _controller;
 
         /// <summary>
-        /// The PlayerController controlling this Pawn, or null.
+        /// The controller of this Pawn (a PlayerController or an AIController), or null.
         /// </summary>
-        public PlayerController Controller => _controller != null ? _controller : null;
+        public Controller Controller => _controller != null ? _controller : null;
 
         /// <summary>
-        /// The PlayerState of the player controlling this Pawn, or null.
+        /// The PlayerState of whoever controls this Pawn, or null (AIs have one only if they ask for it).
         /// </summary>
         public PlayerState PlayerState => Controller != null ? Controller.PlayerState : null;
 
-        public bool IsPlayerControlled => Controller != null;
+        public bool IsPlayerControlled => Controller is PlayerController;
 
-        public T GetController<T>() where T : PlayerController
+        public bool IsAIControlled => Controller is AIController;
+
+        public AutoPossessAI AutoPossessAI
+        {
+            get => autoPossessAI;
+            set => autoPossessAI = value;
+        }
+
+        public T GetController<T>() where T : Controller
         {
             return Controller as T;
         }
@@ -35,14 +74,41 @@ namespace ModernWestern.UEArchitecture
         }
 
         /// <summary>
-        /// Called when a player takes control of this Pawn.
+        /// Creates this Pawn's AI controller (its AI Controller prefab, or a plain AIController) and possesses it.
+        /// Does nothing if something already controls it. Like Unreal's SpawnDefaultController.
         /// </summary>
-        protected virtual void OnPossessed(PlayerController controller)
+        public AIController SpawnDefaultController()
+        {
+            if (Controller != null)
+            {
+                return null;
+            }
+
+            var controller = aiController != null ? Instantiate(aiController) : new GameObject().AddComponent<AIController>();
+
+            controller.name = (aiController != null ? aiController.name : "AIController") + " (" + name + ")";
+
+            var level = World.Scene;
+
+            if (level.IsValid() && level.isLoaded && controller.gameObject.scene != level)
+            {
+                SceneManager.MoveGameObjectToScene(controller.gameObject, level);
+            }
+
+            controller.Possess(this);
+
+            return controller;
+        }
+
+        /// <summary>
+        /// Called when a controller takes control of this Pawn.
+        /// </summary>
+        protected virtual void OnPossessed(Controller controller)
         {
         }
 
         /// <summary>
-        /// Called when the player lets go of this Pawn.
+        /// Called when the controller lets go of this Pawn.
         /// </summary>
         protected virtual void OnUnPossessed()
         {
@@ -59,7 +125,25 @@ namespace ModernWestern.UEArchitecture
             }
         }
 
-        internal void PossessedBy_Internal(PlayerController controller)
+        internal bool AutoPossesses_Internal(bool spawned)
+        {
+            switch (autoPossessAI)
+            {
+                case AutoPossessAI.PlacedInWorld:
+                    return !spawned;
+
+                case AutoPossessAI.Spawned:
+                    return spawned;
+
+                case AutoPossessAI.PlacedInWorldOrSpawned:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        internal void PossessedBy_Internal(Controller controller)
         {
             _controller = controller;
 

@@ -4,6 +4,6 @@ namespace ModernWestern.UEArchitecture.Tests
     {
         public int Possessions;
 
-        protected override void OnPossessed(PlayerController controller) => Possessions++;
+        protected override void OnPossessed(Controller controller) => Possessions++;
     }
 }

@@ -123,6 +123,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 DrawObject_Internal("player/" + player.PlayerIndex, playerState, $"{playerState?.PlayerName}  ·  {summary}", player);
             }
 
+            foreach (var ai in World.AIControllers)
+            {
+                if (ai == null)
+                {
+                    continue;
+                }
+
+                var bot = ai.PlayerState != null ? ai.PlayerState.PlayerName + "  ·  " : string.Empty;
+
+                DrawObject_Internal("ai/" + ai.GetInstanceID(), ai, bot + (ai.Pawn != null ? "controls " + ai.Pawn.name : "no Pawn"), ai, "AI  " + ai.GetType().Name);
+            }
+
             var worldTypes = World.AllSubsystems.Select(subsystem => subsystem.GetType()).ToArray();
 
             foreach (var subsystem in World.AllSubsystems)

@@ -21,6 +21,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             WorldSubsystem,
             GameMode,
             PlayerController,
+            AIController,
             Pawn,
             HUD,
             LoadingScreen
@@ -43,10 +44,13 @@ namespace ModernWestern.UEArchitecture.EditorTools
         [MenuItem(Menu + "Player Controller", false, 94)]
         private static void CreatePlayerController() => Start_Internal(Kind.PlayerController, "NewPlayerController");
 
-        [MenuItem(Menu + "Pawn", false, 95)]
+        [MenuItem(Menu + "AI Controller", false, 95)]
+        private static void CreateAIController() => Start_Internal(Kind.AIController, "NewAIController");
+
+        [MenuItem(Menu + "Pawn", false, 96)]
         private static void CreatePawn() => Start_Internal(Kind.Pawn, "NewPawn");
 
-        [MenuItem(Menu + "HUD", false, 96)]
+        [MenuItem(Menu + "HUD", false, 97)]
         private static void CreateHud() => Start_Internal(Kind.HUD, "NewHUD");
 
         [MenuItem(Menu + "Loading Screen", false, 107)]
@@ -296,15 +300,41 @@ public class #NAME# : PlayerController
 }
 ";
 
+                case Kind.AIController:
+                    return @"using UnityEngine;
+using ModernWestern.UEArchitecture;
+
+// An AI: drives its Pawn by code. Put it on a prefab, pick the prefab in the Pawn's AI Controller field and set the Pawn's
+// Auto Possess AI (placed in the level, spawned with World.SpawnPawn, or both).
+public class #NAME# : AIController
+{
+    private void Update()
+    {
+        if (Pawn == null)
+        {
+            return;
+        }
+
+        // Decide here and drive the Pawn.
+    }
+
+    protected override void OnPossess(Pawn pawn)
+    {
+    }
+}
+";
+
                 case Kind.Pawn:
                     return @"using UnityEngine;
 using ModernWestern.UEArchitecture;
 
-// Something a player controls. Put it on the GameMode's default Pawn prefab. Data that must survive death belongs in the PlayerState.
+// Something a player or an AI controls. Put it on the GameMode's default Pawn prefab (players) or set its Auto Possess AI
+// (enemies, NPCs). Data that must survive death belongs in the PlayerState.
 public class #NAME# : Pawn
 {
-    protected override void OnPossessed(PlayerController controller)
+    protected override void OnPossessed(Controller controller)
     {
+        // A PlayerController or an AIController.
     }
 
     protected override void OnUnPossessed()

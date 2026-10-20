@@ -87,9 +87,9 @@ namespace ModernWestern.UEArchitecture
             }
         }
 
-        private void OnPawnChanged_Internal(PlayerController player)
+        private void OnPawnChanged_Internal(Controller controller)
         {
-            FrameworkViewModels.Bind(_widget, player);
+            FrameworkViewModels.Bind(_widget, controller as PlayerController);
         }
     }
 }

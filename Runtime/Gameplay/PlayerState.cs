@@ -16,9 +16,14 @@ namespace ModernWestern.UEArchitecture
         public string PlayerName { get; set; }
 
         /// <summary>
-        /// The player's PlayerController.
+        /// The player's controller: its PlayerController, or the AIController of a bot.
         /// </summary>
-        public PlayerController Controller { get; private set; }
+        public Controller Controller { get; private set; }
+
+        /// <summary>
+        /// True for the PlayerState of an AI (a bot).
+        /// </summary>
+        public bool IsBot => Controller is AIController;
 
         /// <summary>
         /// The Pawn the player controls right now, or null (e.g. dead and waiting to respawn).
@@ -52,7 +57,7 @@ namespace ModernWestern.UEArchitecture
             return PlayerName;
         }
 
-        internal void Init_Internal(PlayerController controller, int playerId, string playerName)
+        internal void Init_Internal(Controller controller, int playerId, string playerName)
         {
             Controller = controller;
 
