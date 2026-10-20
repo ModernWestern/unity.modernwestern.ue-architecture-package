@@ -1,0 +1,25 @@
+{
+    "name": "UEArchitecture.Samples.Patrol",
+    "rootNamespace": "ModernWestern.UEArchitecture.Samples.Patrol",
+    "references": [
+        "UEArchitecture.Runtime",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UEA_SAMPLE_PATROL"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.modules.ai",
+            "expression": "1.0.0",
+            "define": "UEA_SAMPLE_PATROL"
+        }
+    ],
+    "noEngineReferences": false
+}
