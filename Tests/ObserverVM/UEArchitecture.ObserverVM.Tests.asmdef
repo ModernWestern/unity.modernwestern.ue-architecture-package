@@ -1,0 +1,38 @@
+{
+    "name": "UEArchitecture.ObserverVM.Tests",
+    "rootNamespace": "ModernWestern.UEArchitecture.Tests",
+    "references": [
+        "UEArchitecture.Runtime",
+        "UEArchitecture.ObserverVM",
+        "UEArchitecture.Tests",
+        "ObserverVM",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "UEA_TEST_FRAMEWORK",
+        "UEA_OBSERVERVM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.test-framework",
+            "expression": "1.0.0",
+            "define": "UEA_TEST_FRAMEWORK"
+        },
+        {
+            "name": "com.modernwestern.observer-vm",
+            "expression": "2.0.0",
+            "define": "UEA_OBSERVERVM"
+        }
+    ],
+    "noEngineReferences": false
+}

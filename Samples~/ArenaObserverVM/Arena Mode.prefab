@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6210805978815102752
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6483192169631176970}
+  - component: {fileID: 1594968311542437537}
+  m_Layer: 0
+  m_Name: Arena Mode
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6483192169631176970
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6210805978815102752}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1594968311542437537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6210805978815102752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d135e7e912b420949b231d6bbf7189bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerController: {fileID: 7896272817917304079, guid: be440373eb6bb9a4db8be9f790d5a241, type: 3}
+  defaultPawn: {fileID: 3579623591260771960, guid: 63ad5e2a6e4e1704ca9521bc94eae207, type: 3}
+  hud: {fileID: 102745597074202264, guid: d2a24ce299ceb794aaa0d456be748fae, type: 3}
+  playersAtStart: 1
+  coinsToWin: 8
+  roundSeconds: 30
+  coinPrefab: {fileID: 8513239484698050611, guid: 4992de62d1e0bc24c9184c0a173b0450, type: 3}
+  loadingScreen: {fileID: 3508315533697837727, guid: b9549f987fc39004fa8b3e13bd64b5e6, type: 3}

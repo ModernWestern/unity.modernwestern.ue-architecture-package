@@ -1,30 +1,36 @@
 {
   "name": "com.modernwestern.ue-architecture",
-  "version": "1.2.0",
-  "displayName": "UEArchitecture",
-  "description": "Ureal Engine Architecture\n\n- GameInstance: Holds global data that persists across scenes, such as login info, settings, or user progress. Acts as a singleton.\n- PlayerState: Stores player-specific data that persists during the game session, like name, score, stats, etc. Can be network-synced.\n- GameEvents: Central hub for broadcasting and listening to global events across systems (e.g., match start, UI updates, powerups). Helps decouple logic.\n- SceneRoot: Scene-level controller that combines GameMode rules and LevelBlueprint-like visual logic. Manages level-specific logic and initialization.\n\nInstructions for Setup\n\nBefore creating your GameInstance or SceneRoot, make sure to create the following ScriptableObjects first:\n\n- GameState\n- PlayerState\n- GameEvents\n\nOnce these are created and configured, you can safely reference them in your GameInstance and SceneRoot components to ensure all systems are properly linked.",
-  "unity": "2019.2",
-  "category": "Tool",
+  "version": "2.0.0",
+  "displayName": "UE Architecture",
+  "description": "Unreal Engine's gameplay framework for Unity, zero-allocation where it matters.\n\n- GameInstance that starts by itself from any scene, with Subsystems (no more singletons).\n- World Subsystems that live as long as the level.\n- GameMode, GameState, PlayerState, PlayerController, Pawn, HUD and PlayerStart, chosen per level in World Settings.\n- Levels: open and stream levels with a loading screen.\n- Messages: typed messages between systems (like Lyra's GameplayMessageSubsystem).\n- Timers: like FTimerManager, replacing Invoke and coroutines.\n\nWorks on its own, and with ObserverVM installed the HUD binds its Widgets to the framework by itself.",
+  "unity": "2021.3",
+  "category": "Game Framework",
   "keywords": [
-    "Utils",
-    "Methods",
-    "Tools"
+    "Unreal",
+    "GameInstance",
+    "Subsystem",
+    "GameMode",
+    "Framework",
+    "Architecture"
   ],
   "author": {
     "name": "Modern Western",
     "url": "https://github.com/ModernWestern/"
   },
   "repository": {
-    "url": "https://github.com/ModernWestern/unity.modernwestern.unity-rest-package.git",
+    "url": "https://github.com/ModernWestern/unity.modernwestern.ue-architecture-package.git",
     "type": "git"
   },
-  "scopedRegistries": [
+  "samples": [
     {
-      "name": "package.openupm.com",
-      "url": "https://package.openupm.com/",
-      "scopes": [
-        "com.cysharp.unitask"
-      ]
+      "displayName": "Arena",
+      "description": "Start here. A small game built with the framework only: a GameMode with its GameState and PlayerState, a PlayerController driving a Pawn spawned at a PlayerStart, a HUD fed by Messages and Timers, a level subsystem that spawns coins and a game subsystem that keeps the best score across levels, which reopen behind a loading screen. Requires TextMeshPro.",
+      "path": "Samples~/Arena"
+    },
+    {
+      "displayName": "Arena + ObserverVM",
+      "description": "The same game with ObserverVM installed (com.modernwestern.observer-vm 2.0+): the GameState, PlayerState and best-score subsystem expose Observables, and the HUD is made of Widgets with no code that the HUD binds by itself to the right framework object. Without ObserverVM its scripts are skipped. Requires TextMeshPro.",
+      "path": "Samples~/ArenaObserverVM"
     }
   ]
 }

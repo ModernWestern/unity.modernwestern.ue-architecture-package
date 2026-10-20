@@ -1,0 +1,25 @@
+{
+    "name": "UEArchitecture.ObserverVM",
+    "rootNamespace": "ModernWestern.UEArchitecture",
+    "references": [
+        "UEArchitecture.Runtime",
+        "ObserverVM"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UEA_OBSERVERVM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.modernwestern.observer-vm",
+            "expression": "2.0.0",
+            "define": "UEA_OBSERVERVM"
+        }
+    ],
+    "noEngineReferences": false
+}
