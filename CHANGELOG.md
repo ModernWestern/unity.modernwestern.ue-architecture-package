@@ -7,7 +7,11 @@ Rewritten as Unreal's gameplay framework. The 1.x API is removed (tag `v1.2.0`);
 - `GameInstance` that starts by itself before the first scene, from any scene, configured in Project Settings > UE Architecture.
 - `GameInstanceSubsystem` and `WorldSubsystem` (created by themselves, dependency-ordered initialization, `ITickable`, `Get<T>` without allocating).
 - `World`: level lifecycle (`BeganPlay`, `EndingPlay`), typed getters for the GameMode, GameState, players and Pawns.
-- `GameMode` / `GameMode<TGameState, TPlayerState>`, `GameState`, `PlayerState`, `PlayerController`, `Pawn`, `HUD`, `PlayerStart`, `WorldSettings`.
+- `GameMode` / `GameMode<TGameState, TPlayerState>`, `GameState`, `PlayerState`, `Controller`, `PlayerController`, `AIController`, `Pawn` (with Auto Possess AI), `HUD`, `PlayerStart`, `WorldSettings`; `World.SpawnPawn`, `World.AIControllers`, bots with a PlayerState.
+- GameInstance and game subsystem hooks: `OnLevelBeganPlay`, `OnLevelEndingPlay`.
+- Tick groups and order for tickable subsystems: `[Tick(TickGroup.LateUpdate, Order = -10, Unscaled = true)]`.
+- `GameplayTag` and `GameplayTagContainer` (hierarchical, allocation-free queries, Inspector picker, project tag list).
+- `SaveGame` and `SaveGames` (slots, versions, atomic writes, async variants).
 - `Levels`: `Open` with loading screens, `Stream` / `Unstream`, `LevelLoad` usable as callback, coroutine or `await`; `SceneReference`.
 - `Messages`: typed struct messages without allocation.
 - `Timers`: like FTimerManager, without allocation.
