@@ -82,7 +82,8 @@ namespace ModernWestern.UEArchitecture.Tests
         {
             foreach (var link in _links)
             {
-                link.Remove();
+                // NavMeshLinkInstance.Remove() is obsolete in Unity 6.3; NavMesh.RemoveLink works in every version.
+                NavMesh.RemoveLink(link);
             }
 
             foreach (var navMesh in _navMeshes)

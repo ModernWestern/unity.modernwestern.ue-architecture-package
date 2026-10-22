@@ -373,4 +373,4 @@ Unity -batchmode -projectPath <project> -runTests -testPlatform PlayMode -testRe
 
 ## Unity versions
 
-Declared minimum: 2021.3 (not tested yet). Verified with 2022.3 (Built-in pipeline; Editor, and IL2CPP players with High code stripping, including the Patrol sample) and 6000.1 (URP with the Input System package only; Editor). Without Unity's AI module, everything but navigation compiles and passes its tests.
+Declared minimum: 2021.3 (not tested yet). Verified with 2022.3 (Built-in pipeline; Editor, and IL2CPP players with High code stripping, including the Patrol sample), 6000.1 (URP with the Input System package only; Editor) and 6000.3 LTS (URP, inside a game; Editor). Without Unity's AI module, everything but navigation compiles and passes its tests.

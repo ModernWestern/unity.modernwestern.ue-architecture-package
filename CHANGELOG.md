@@ -14,6 +14,9 @@
 - `GameMode.RestartPlayer` stops the Pawn's move and warps its NavMeshAgent, which kept walking from where it was.
 - `Controller` and `Pawn` are `partial` classes (navigation lives in its own files).
 
+### Fixed
+- Tests: NavMesh links are removed with `NavMesh.RemoveLink`, since `NavMeshLinkInstance.Remove()` is obsolete in Unity 6.3.
+
 Navigation needs Unity's built-in AI module (`com.unity.modules.ai`, on by default); without it, that part is left out.
 
 ## [2.0.0] - 2026-10-20
