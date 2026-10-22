@@ -162,6 +162,15 @@ namespace ModernWestern.UEArchitecture
             {
                 if (start != null)
                 {
+#if UEA_NAVIGATION
+                    // A NavMeshAgent keeps its own position: stop its move and warp it, or it would walk on from where it was.
+                    player.StopMovement();
+
+                    if (player.Pawn.TryGetComponent(out UnityEngine.AI.NavMeshAgent agent) && agent.isActiveAndEnabled && agent.isOnNavMesh)
+                    {
+                        agent.Warp(start.transform.position);
+                    }
+#endif
                     player.Pawn.transform.SetPositionAndRotation(start.transform.position, start.transform.rotation);
                 }
 

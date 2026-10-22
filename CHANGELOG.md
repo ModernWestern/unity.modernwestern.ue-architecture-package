@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.1.0] - 2026-10-20
+
+### Added
+- Navigation, like Unreal's AI MoveTo: `Controller.MoveTo`, `MoveToActor`, `StopMovement`, `PauseMove`, `ResumeMove`, `MoveStatus` and the `OnMoveCompleted` override. Every move ends with exactly one result (`MoveOutcome`: Success, Partial, Blocked, Invalid, Aborted, with a `MoveReason`), decided from the path's state instead of a distance threshold: stale and lost paths, partial paths, off-mesh links, crowds and stuck agents are handled.
+- `PathFollowing` component (added to a Pawn with a NavMeshAgent the first time it moves; works on any NavMeshAgent), `MoveRequest` (callback with an owner and a static lambda, coroutine `Wait()`, `await`), `MoveResult`.
+- `NavigationSystem` level subsystem: ticks the moves in progress after every LateUpdate, without allocating.
+- Editor: Path Following inspector with the live move and gizmos; moves in progress in the Debugger.
+- Sample: Patrol (guards patrolling with MoveTo, a chase with MoveToActor, click to move, a NavMesh built at runtime).
+- Tests: 40 navigation PlayMode tests, including random interruptions of 50 agents, an agent that keeps moving without getting anywhere, and zero-GC checks.
+
+### Changed
+- `GameMode.RestartPlayer` stops the Pawn's move and warps its NavMeshAgent, which kept walking from where it was.
+- `Controller` and `Pawn` are `partial` classes (navigation lives in its own files).
+
+### Fixed
+- Tests: NavMesh links are removed with `NavMesh.RemoveLink`, since `NavMeshLinkInstance.Remove()` is obsolete in Unity 6.3.
+
+Navigation needs Unity's built-in AI module (`com.unity.modules.ai`, on by default); without it, that part is left out.
+
 ## [2.0.0] - 2026-10-20
 Rewritten as Unreal's gameplay framework. The 1.x API is removed (tag `v1.2.0`); see "Migrating from 1.x" in the README.
 

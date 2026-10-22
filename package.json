@@ -1,8 +1,8 @@
 {
   "name": "com.modernwestern.ue-architecture",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "displayName": "UE Architecture",
-  "description": "Unreal Engine's gameplay framework for Unity, zero-allocation where it matters.\n\n- GameInstance that starts by itself from any scene, with Subsystems (no more singletons).\n- World Subsystems that live as long as the level.\n- GameMode, GameState, PlayerState, PlayerController, Pawn, HUD and PlayerStart, chosen per level in World Settings.\n- Levels: open and stream levels with a loading screen.\n- Messages: typed messages between systems (like Lyra's GameplayMessageSubsystem).\n- Timers: like FTimerManager, replacing Invoke and coroutines.\n\nWorks on its own, and with ObserverVM installed the HUD binds its Widgets to the framework by itself.",
+  "description": "Unreal Engine's gameplay framework for Unity, zero-allocation where it matters.\n\n- GameInstance that starts by itself from any scene, with Subsystems (no more singletons).\n- World Subsystems that live as long as the level.\n- GameMode, GameState, PlayerState, PlayerController, Pawn, HUD and PlayerStart, chosen per level in World Settings.\n- Navigation: MoveTo on any controller, like Unreal's AI MoveTo. Every move ends with exactly one event: Success, Partial, Blocked, Invalid or Aborted.\n- Levels: open and stream levels with a loading screen.\n- Messages: typed messages between systems (like Lyra's GameplayMessageSubsystem).\n- Timers: like FTimerManager, replacing Invoke and coroutines.\n\nWorks on its own, and with ObserverVM installed the HUD binds its Widgets to the framework by itself.",
   "unity": "2021.3",
   "category": "Game Framework",
   "keywords": [
@@ -11,7 +11,9 @@
     "Subsystem",
     "GameMode",
     "Framework",
-    "Architecture"
+    "Architecture",
+    "NavMesh",
+    "AI"
   ],
   "author": {
     "name": "Modern Western",
@@ -31,6 +33,11 @@
       "displayName": "Arena + ObserverVM",
       "description": "The same game with ObserverVM installed (com.modernwestern.observer-vm 2.0+): the GameState, PlayerState and best-score subsystem expose Observables, and the HUD is made of Widgets with no code that the HUD binds by itself to the right framework object. Without ObserverVM its scripts are skipped. Requires TextMeshPro.",
       "path": "Samples~/ArenaObserverVM"
+    },
+    {
+      "displayName": "Patrol",
+      "description": "Navigation: two guards patrol with MoveTo and react to how each move ended. One of their points is on a platform nobody can reach (Invalid), a gate closes in another's way (Blocked), and a guard that sees you chases you with MoveToActor. You walk where you click. The level builds its NavMesh as it begins, so there is nothing to bake and no package to add. Requires Unity's AI module (built in, on by default).",
+      "path": "Samples~/Patrol"
     }
   ]
 }

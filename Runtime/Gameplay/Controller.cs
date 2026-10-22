@@ -8,7 +8,7 @@ namespace ModernWestern.UEArchitecture
     /// (<see cref="AIController"/>). It outlives its Pawns and can move from one to another with <see cref="Possess"/>.
     /// </summary>
     [DisallowMultipleComponent]
-    public abstract class Controller : MonoBehaviour
+    public abstract partial class Controller : MonoBehaviour
     {
         private Pawn _pawn;
 

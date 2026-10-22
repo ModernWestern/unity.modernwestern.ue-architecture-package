@@ -1,6 +1,6 @@
 # UE Architecture
 
-Unreal Engine's gameplay framework for Unity: a **GameInstance** that starts by itself, **Subsystems** instead of singletons, **GameMode / GameState / PlayerState / PlayerController / AIController / Pawn / HUD** chosen per level, **Levels** with loading screens, typed **Messages**, **Timers**, **Gameplay Tags** and **Save Games**. What runs every frame allocates nothing.
+Unreal Engine's gameplay framework for Unity: a **GameInstance** that starts by itself, **Subsystems** instead of singletons, **GameMode / GameState / PlayerState / PlayerController / AIController / Pawn / HUD** chosen per level, **Navigation** that always tells you how a move ended, **Levels** with loading screens, typed **Messages**, **Timers**, **Gameplay Tags** and **Save Games**. What runs every frame allocates nothing.
 
 | Unreal | UE Architecture |
 |---|---|
@@ -12,6 +12,8 @@ Unreal Engine's gameplay framework for Unity: a **GameInstance** that starts by 
 | `AController`, `APlayerController`, `AAIController` | `Controller`, `PlayerController`, `AIController` |
 | `APawn` (Auto Possess AI), `AHUD`, `APlayerStart` | `Pawn` (`AutoPossessAI`), `HUD`, `PlayerStart` |
 | `SpawnActor` | `World.SpawnPawn` |
+| `AAIController::MoveTo`, `MoveToActor`, `OnMoveCompleted` | `Controller.MoveTo`, `MoveToActor`, `OnMoveCompleted` |
+| `UPathFollowingComponent`, `EPathFollowingResult` | `PathFollowing`, `MoveOutcome` |
 | World Settings > GameMode Override | `WorldSettings` component |
 | Project Settings > Maps & Modes | Project Settings > UE Architecture |
 | `OpenLevel`, level streaming | `Levels.Open`, `Levels.Stream` |
@@ -33,7 +35,7 @@ https://github.com/ModernWestern/unity.modernwestern.ue-architecture-package.git
 
 To pin a version, add its tag: `...ue-architecture-package.git#v2.0.0`. The 1.x API (`SceneRoot`, `GameEvents`, ScriptableObject states) stays available at `#v1.2.0` (see [Migrating from 1.x](#migrating-from-1x)).
 
-Requires Unity 2021.3+. No other dependency.
+Requires Unity 2021.3+. No other dependency (navigation uses Unity's built-in AI module, on by default).
 
 ## Quick start
 
@@ -180,6 +182,65 @@ An AI with **Wants Player State** gets a PlayerState of the GameMode's class and
 
 **GameState and PlayerState are plain objects owned by the level**, not assets: nothing leaks between Play sessions or between the Editor and builds. What must outlive a level goes in the GameInstance or a game subsystem.
 
+## Navigation
+
+Unity's NavMeshAgent never tells you that it arrived. The usual check, `!pathPending && remainingDistance <= stoppingDistance`, fails in ways the tests of this package measured:
+
+- Right after `Warp` or `ResetPath` the path is gone and `remainingDistance` is 0: it says "arrived" where the agent was teleported.
+- On long paths `remainingDistance` is `Infinity` most of the way.
+- If the destination cannot be reached, Unity moves `agent.destination` to the closest edge: comparing with it says "arrived" 10 m away, comparing with the point you asked for never does.
+- With another agent standing on the destination, the agent jitters a couple of centimetres away and never stops.
+
+**`MoveTo` ends every move with exactly one event**, like Unreal's `AAIController::MoveTo` and `OnMoveCompleted`:
+
+```csharp
+public class Guard : AIController
+{
+    void Patrol() => MoveTo(points[next].position);
+
+    protected override void OnMoveCompleted(MoveResult result)
+    {
+        if (result.Outcome == MoveOutcome.Aborted) return;   // something else took over
+
+        next = (next + 1) % points.Length;                   // reached it, or cannot: go on
+        Timers.Set(this, result.IsSuccess ? 1f : 0f, static guard => guard.Patrol());
+    }
+}
+```
+
+| Outcome | When |
+|---|---|
+| `Success` | It stands within the acceptance radius (or the agent's stopping distance, whichever is larger) of where the complete path ends. Also when it can get no closer and its body already covers that point (another agent standing there). |
+| `Partial` | The destination cannot be reached and it got as close as possible. Only with `allowPartial: true`; otherwise the move is `Invalid` at once, before walking. |
+| `Blocked` | It did not move `BlockDistance` (0.1 m) in `BlockTime` (3 s): stuck against an obstacle, a closed door, an off-mesh link never finished. Or it kept moving inside a small area (two agent widths) for three `BlockTime`s: dancing around another agent, circling. |
+| `Invalid` | No path, nothing walkable near the destination, or the agent is not on a NavMesh (it waits up to `BlockTime` for one to be built or loaded). |
+| `Aborted` | A new move, `StopMovement`, the Pawn disabled or destroyed, the level ending, the Pawn changing controller, or the actor it followed destroyed. |
+
+`result.Reason` says why (`AlreadyThere`, `NewRequest`, `Unreachable`, `DestinationNotOnNavMesh`...), with `Position`, `Destination` and `Duration`.
+
+How it decides: it waits until the path is computed (it never reads stale path data from before `SetDestination`), keeps the end of the path being followed (Unity's `pathEndPosition` follows the agent once a path is dropped), checks arrival against that end with a horizontal radius and a height tolerance, never while crossing an off-mesh link, finds the path again when it is lost (`Warp`, NavMesh rebuilt), asks again once at the end of a partial path in case the end moves, and ends as `Blocked` when progress stops. A NaN destination, a disabled agent or a move requested while the level ends still get their one event.
+
+**Ways to hear the end**, pick one:
+
+```csharp
+ai.MoveTo(point, this, static (self, result) => self.OnArrived(result));   // callback, allocates nothing
+protected override void OnMoveCompleted(MoveResult result) { }             // in the controller
+pawn.PathFollowing.MoveCompleted += result => { };                          // anyone listening
+yield return ai.MoveTo(point).Wait();                                       // coroutine
+var result = await ai.MoveTo(point);                                        // async method
+```
+
+The event never arrives inside `MoveTo`, so subscribing right after it is safe; it comes on a later frame, after every `LateUpdate`. The one exception is a move being replaced or stopped: it ends right away, before `MoveTo` or `StopMovement` returns. You can request the next move from any of them. When a `MoveTo` replaces a move, the `MoveTo` calls made by that move's handlers at that moment are ignored (they return `MoveRequest.None`), so a patrol that always moves on cannot steal the move that replaced it.
+
+- **The Pawn needs a NavMeshAgent**; its `PathFollowing` component is added the first time it moves (add it yourself to set `BlockTime` and `BlockDistance`). It also works on a plain GameObject: `GetComponent<PathFollowing>().MoveTo(...)`.
+- **Follow an actor** with `MoveToActor(target)`: it repaths as the actor moves and ends when touching it (its NavMeshAgent radius, NavMeshObstacle or Renderer size), also when the actor is an obstacle whose path is always partial.
+- **Pause** with `PauseMove` / `ResumeMove`: a paused move is never Blocked. **Stop** with `StopMovement`, not `NavMeshAgent.ResetPath` (a path lost without it is found again). Setting the agent's speed to 0 ends the move as Blocked.
+- `MoveStatus` (`Idle`, `Waiting`, `Moving`, `Paused`) and `MoveRequest.IsActive`, `Stop()`, `TryGetResult()`.
+- `GameMode.RestartPlayer` stops the Pawn's move and warps its NavMeshAgent.
+- The level's `NavigationSystem` (a level subsystem) ticks only the moves in progress, without allocating.
+
+You still need a NavMesh: bake it, use NavMeshSurface from the AI Navigation package, or build it at runtime (the Patrol sample does). Navigation uses Unity's built-in AI module, on by default; without it this part of the package is left out and everything else works.
+
 ## Messages
 
 Typed messages between systems that do not know each other. A message is a struct: broadcasting allocates nothing.
@@ -272,22 +333,24 @@ public sealed class ArenaPlayerState : PlayerState
 - **Gameplay tag fields**: a nested menu of the project tags; unknown names are flagged.
 - **GameMode inspector**: what it creates (GameState, PlayerState, PlayerController, Pawn, HUD). **World Settings inspector**: the GameMode the level will use and why, and a fix when a Pawn has no Player Start.
 - **SceneReference fields**: scene picker with a one-click "Add to Build".
-- **Window > UE Architecture > Debugger**: the running game, its subsystems (with their tick group), the level with its GameMode, GameState, players, AIs and subsystems, active timers and message listeners, with live public values.
+- **Window > UE Architecture > Debugger**: the running game, its subsystems (with their tick group), the level with its GameMode, GameState, players, AIs and subsystems, the moves in progress, active timers and message listeners, with live public values.
+- **Path Following inspector**: in Play mode, the move in progress (status, destination, acceptance radius, seconds without progress) and how the last one ended. A selected agent draws its path and where arrival is measured.
 - **Assets > Create > UE Architecture**: GameInstance, subsystems, GameMode (+ GameState + PlayerState), PlayerController, AIController, Pawn, HUD and LoadingScreen scripts, in the folder's root namespace.
 - **GameObject > UE Architecture**: World Settings, Player Start.
 
 ## Zero allocations
 
-Measured by tests in the Editor and in IL2CPP players: `GameInstance.Get`, `World.Get` and the typed getters, `Messages.Broadcast`, listening and stopping, setting, firing and clearing timers, a frame of the framework (timers + tickable subsystems), gameplay tag queries, adding and removing, and looping over `World.Players`, `GameState.Players`, `PlayerStart.All` and the subsystem lists with `foreach` (they are `ListView<T>`, not interfaces that box their enumerator). The first call of each kind may allocate once (arrays grow, Mono creates static lambdas).
+Measured by tests in the Editor and in IL2CPP players: `GameInstance.Get`, `World.Get` and the typed getters, `Messages.Broadcast`, listening and stopping, setting, firing and clearing timers, a frame of the framework (timers + tickable subsystems), gameplay tag queries, adding and removing, `MoveTo` with a static callback, a tick of every move in progress, and looping over `World.Players`, `GameState.Players`, `PlayerStart.All` and the subsystem lists with `foreach` (they are `ListView<T>`, not interfaces that box their enumerator). The first call of each kind may allocate once (arrays grow, Mono creates static lambdas).
 
 Subsystems are created by reflection and save games are filled by the serializer; a `link.xml` generated at build time keeps both in IL2CPP builds with code stripping. Without it, a High-stripped build loses subsystems no script mentions, and even the constructor of the ones it mentions.
 
 ## Samples
 
-Package Manager → **UE Architecture** → **Samples**. Both need TextMeshPro and work with the Built-in pipeline or URP, and with the legacy Input Manager or the Input System package.
+Package Manager → **UE Architecture** → **Samples**. They work with the Built-in pipeline or URP, and with the legacy Input Manager or the Input System package. The Arena samples need TextMeshPro.
 
 - **Arena** (start here): collect the coins before the time runs out. A GameMode with GameState and PlayerState, a PlayerController driving a Pawn spawned at a Player Start, coins that announce themselves with Messages, a level subsystem spawning them with Timers, a HUD fed by messages and timers, a game subsystem keeping the best score in a save game while the level reopens behind a loading screen.
 - **Arena + ObserverVM**: the same game with Observable states and a HUD made of Widgets with no code, bound by the HUD. Needs ObserverVM.
+- **Patrol**: navigation. Two guards patrol with `MoveTo` and react to how each move ended: a point on a platform nobody can reach (`Invalid`), a gate that closes in the way (`Blocked`), and a chase with `MoveToActor` when they see you. You walk where you click (a click on the platform ends `Partial`). The level builds its NavMesh as it begins: nothing to bake, no package to add.
 
 ## Running the tests
 
@@ -310,4 +373,4 @@ Unity -batchmode -projectPath <project> -runTests -testPlatform PlayMode -testRe
 
 ## Unity versions
 
-Declared minimum: 2021.3 (not tested yet). Verified with 2022.3 (Built-in pipeline; Editor, and IL2CPP players with High code stripping) and 6000.1 (URP with the Input System package only; Editor).
+Declared minimum: 2021.3 (not tested yet). Verified with 2022.3 (Built-in pipeline; Editor, and IL2CPP players with High code stripping, including the Patrol sample), 6000.1 (URP with the Input System package only; Editor) and 6000.3 LTS (URP, inside a game; Editor). Without Unity's AI module, everything but navigation compiles and passes its tests.
