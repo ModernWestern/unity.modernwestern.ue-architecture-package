@@ -152,30 +152,52 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             var icon = EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
 
+#if UNITY_6000_4_OR_NEWER
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, action, defaultName + ".cs", icon, null);
+#else
             ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, action, defaultName + ".cs", icon, null);
+#endif
         }
 
+        private static void Create_Internal(Kind kind, string pathName)
+        {
+            var folder = Path.GetDirectoryName(pathName)?.Replace('\\', '/') ?? "Assets";
+
+            var className = FileName(kind, pathName);
+
+            var path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{className}.cs");
+
+            var rootNamespace = CompilationPipeline.GetAssemblyRootNamespaceFromScriptPath(path);
+
+            File.WriteAllText(path, Source(kind, kind == Kind.GameMode ? className : Path.GetFileNameWithoutExtension(path), rootNamespace));
+
+            AssetDatabase.ImportAsset(path);
+
+            ProjectWindowUtil.ShowCreatedAsset(AssetDatabase.LoadAssetAtPath<MonoScript>(path));
+        }
+
+        // Unity 6.4 replaced EndNameEditAction (int instance ids) with AssetCreationEndAction (EntityId); 6.5 removed the old one.
+#if UNITY_6000_4_OR_NEWER
+        private sealed class CreateAction : AssetCreationEndAction
+        {
+            public Kind Kind;
+
+            public override void Action(EntityId entityId, string pathName, string resourceFile)
+            {
+                Create_Internal(Kind, pathName);
+            }
+        }
+#else
         private sealed class CreateAction : EndNameEditAction
         {
             public Kind Kind;
 
             public override void Action(int instanceId, string pathName, string resourceFile)
             {
-                var folder = Path.GetDirectoryName(pathName)?.Replace('\\', '/') ?? "Assets";
-
-                var className = FileName(Kind, pathName);
-
-                var path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{className}.cs");
-
-                var rootNamespace = CompilationPipeline.GetAssemblyRootNamespaceFromScriptPath(path);
-
-                File.WriteAllText(path, Source(Kind, Kind == Kind.GameMode ? className : Path.GetFileNameWithoutExtension(path), rootNamespace));
-
-                AssetDatabase.ImportAsset(path);
-
-                ProjectWindowUtil.ShowCreatedAsset(AssetDatabase.LoadAssetAtPath<MonoScript>(path));
+                Create_Internal(Kind, pathName);
             }
         }
+#endif
 
         private static string Template_Internal(Kind kind)
         {

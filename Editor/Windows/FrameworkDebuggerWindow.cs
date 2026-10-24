@@ -145,7 +145,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 #endif
 
-                DrawObject_Internal("ai/" + ai.GetInstanceID(), ai, summary, ai, "AI  " + ai.GetType().Name);
+                // A per-object key without GetInstanceID, which Unity 6.5 removed.
+                DrawObject_Internal("ai/" + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(ai), ai, summary, ai, "AI  " + ai.GetType().Name);
             }
 
             var worldTypes = World.AllSubsystems.Select(subsystem => subsystem.GetType()).ToArray();
