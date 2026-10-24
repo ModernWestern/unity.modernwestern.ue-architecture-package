@@ -14,6 +14,7 @@ namespace ModernWestern.UEArchitecture
     /// <para>Derive from <see cref="GameMode{TGameState,TPlayerState}"/> to use your own GameState and PlayerState classes.</para>
     /// </summary>
     [DisallowMultipleComponent]
+    [AddComponentMenu("UE Architecture/Game Mode")]
     public class GameMode : MonoBehaviour
     {
         [Header("Default classes")]

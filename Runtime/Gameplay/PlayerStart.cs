@@ -8,6 +8,7 @@ namespace ModernWestern.UEArchitecture
     /// Pawn at one of them, facing its blue arrow.
     /// </summary>
     [DisallowMultipleComponent]
+    [AddComponentMenu("UE Architecture/Player Start")]
     public class PlayerStart : MonoBehaviour
     {
         private static readonly List<PlayerStart> Enabled = new();

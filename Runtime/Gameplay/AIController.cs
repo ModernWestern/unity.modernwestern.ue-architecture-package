@@ -7,6 +7,7 @@ namespace ModernWestern.UEArchitecture
     /// (e.g. in Update, using <see cref="Controller.Pawn"/>). A Pawn creates one by itself when its Auto Possess AI says so,
     /// or call <see cref="Pawn.SpawnDefaultController"/>. Every AI of the level is in <see cref="World.AIControllers"/>.
     /// </summary>
+    [AddComponentMenu("UE Architecture/AI Controller")]
     public class AIController : Controller
     {
         [SerializeField, Tooltip("Give this AI a PlayerState, so it is in GameState.Players like a player (a bot on the scoreboard).")]

@@ -9,6 +9,7 @@ namespace ModernWestern.UEArchitecture
     /// <para>By default it fades a CanvasGroup in and out; override <see cref="Show"/>, <see cref="Hide"/> and
     /// <see cref="OnProgress"/> for your own animation.</para>
     /// </summary>
+    [AddComponentMenu("UE Architecture/Loading Screen")]
     public class LoadingScreen : MonoBehaviour
     {
         [SerializeField, Tooltip("Faded in and out. Empty = the screen just turns on and off.")]

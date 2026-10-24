@@ -9,6 +9,7 @@ namespace ModernWestern.UEArchitecture
     /// in the scene wins over both.
     /// </summary>
     [DisallowMultipleComponent]
+    [AddComponentMenu("UE Architecture/World Settings")]
     public sealed class WorldSettings : MonoBehaviour
     {
         [SerializeField, Tooltip("GameMode prefab for this level. Empty = the default GameMode from Project Settings.")]

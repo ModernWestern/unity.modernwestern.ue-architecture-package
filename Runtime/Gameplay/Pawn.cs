@@ -32,6 +32,7 @@ namespace ModernWestern.UEArchitecture
     /// Data that must survive death belongs in the PlayerState, not here.
     /// </summary>
     [DisallowMultipleComponent]
+    [AddComponentMenu("UE Architecture/Pawn")]
     public partial class Pawn : MonoBehaviour
     {
         [Header("AI")]

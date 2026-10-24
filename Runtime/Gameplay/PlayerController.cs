@@ -5,6 +5,7 @@ namespace ModernWestern.UEArchitecture
     /// Pawns (dying and respawning does not destroy it), owns the player's HUD and holds the player's PlayerState.
     /// The GameMode creates one per player; derive from it for your input and put it on the GameMode's PlayerController prefab.
     /// </summary>
+    [UnityEngine.AddComponentMenu("UE Architecture/Player Controller")]
     public class PlayerController : Controller
     {
         private HUD _hud;

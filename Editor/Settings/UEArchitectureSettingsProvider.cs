@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace ModernWestern.UEArchitecture.EditorTools
 {
@@ -12,6 +13,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// </summary>
     internal static class UEArchitectureSettingsProvider
     {
+        private static UEArchitectureSettings _transient;
+
         public const string SettingsPath = "Project/UE Architecture";
 
         public const string DefaultAssetPath = "Assets/Resources/" + UEArchitectureSettings.ResourcesName + ".asset";
@@ -23,7 +26,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 label = "UE Architecture",
                 guiHandler = Draw_Internal,
-                keywords = new[] { "GameInstance", "GameMode", "Subsystem", "Loading Screen", "Gameplay Tags", "Save", "Unreal" }
+                keywords = new[]
+                {
+                    "GameInstance", "Game Instance", "GameMode", "Default GameMode", "Player Controller", "Pawn", "HUD", "Subsystem", "Loading Screen", "Gameplay Tags",
+                    "Save", "Unreal", "Maps & Modes"
+                }
             };
         }
 
@@ -48,6 +55,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             AssetDatabase.SaveAssets();
 
+            FrameworkIndex.Invalidate();
+
             return settings;
         }
 
@@ -70,79 +79,198 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         private static void Draw_Internal(string search)
         {
+            var previousWidth = EditorGUIUtility.labelWidth;
+
             EditorGUIUtility.labelWidth = 200f;
 
-            var all = FindAll();
+            try
+            {
+                DrawPage_Internal(search);
+            }
+            finally
+            {
+                EditorGUIUtility.labelWidth = previousWidth;
+            }
+        }
 
-            if (all.Length == 0)
+        private static void DrawPage_Internal(string search)
+        {
+            var all = FrameworkIndex.AllSettings;
+
+            var settings = all.Length > 0 ? all[0] : null;
+
+            if (settings == null)
             {
                 EditorGUILayout.Space(6);
 
                 if (UEArchitectureStyles.Notice("The project uses the defaults: a plain GameInstance, no default GameMode and no loading screen. " +
-                                                "Create the settings asset to change them.", MessageType.Info, "Create settings"))
+                                                $"Setting anything below creates {DefaultAssetPath}.", MessageType.Info, "Create settings"))
                 {
                     Selection.activeObject = CreateAsset();
+
+                    GUIUtility.ExitGUI();
+                }
+            }
+            else
+            {
+                var path = AssetDatabase.GetAssetPath(settings);
+
+                if (all.Length > 1)
+                {
+                    EditorGUILayout.HelpBox($"There are {all.Length} settings assets; this page edits {path}. Delete the others.", MessageType.Warning);
                 }
 
-                DrawSubsystems_Internal();
+                var problem = LocationProblem(path);
 
-                return;
+                if (problem.Length > 0 && UEArchitectureStyles.Notice(problem, MessageType.Error, "Move it to " + DefaultAssetPath))
+                {
+                    EnsureFolder_Internal(Path.GetDirectoryName(DefaultAssetPath)?.Replace('\\', '/'));
+
+                    AssetDatabase.MoveAsset(path, AssetDatabase.GenerateUniqueAssetPath(DefaultAssetPath));
+
+                    FrameworkIndex.Invalidate();
+
+                    GUIUtility.ExitGUI();
+                }
             }
 
-            var settings = all[0];
+            // Without an asset the page edits a stand-in; the first change creates the asset (see Materialize_Internal).
+            var owner = settings != null ? settings : Transient_Internal();
 
-            var path = AssetDatabase.GetAssetPath(settings);
+            var options = new ClassFieldOptions { Materialize = settings != null ? null : (Func<Object>)Materialize_Internal };
 
-            if (all.Length > 1)
-            {
-                EditorGUILayout.HelpBox($"There are {all.Length} settings assets; this page edits {path}. Delete the others.", MessageType.Warning);
-            }
-
-            var problem = LocationProblem(path);
-
-            if (problem.Length > 0 && UEArchitectureStyles.Notice(problem, MessageType.Error, "Move it to " + DefaultAssetPath))
-            {
-                EnsureFolder_Internal(Path.GetDirectoryName(DefaultAssetPath)?.Replace('\\', '/'));
-
-                AssetDatabase.MoveAsset(path, AssetDatabase.GenerateUniqueAssetPath(DefaultAssetPath));
-            }
-
-            var serialized = new SerializedObject(settings);
+            var serialized = new SerializedObject(owner);
 
             serialized.Update();
 
-            UEArchitectureStyles.Section("Game");
-
-            EditorGUILayout.PropertyField(serialized.FindProperty("gameInstance"), new GUIContent("Game Instance", "Prefab with your GameInstance component. Empty = a plain GameInstance."));
-
-            EditorGUILayout.PropertyField(serialized.FindProperty("startAutomatically"), new GUIContent("Start Automatically", "Start before the first scene loads, from any scene you press Play in."));
-
-            UEArchitectureStyles.Section("Levels");
-
-            EditorGUILayout.PropertyField(serialized.FindProperty("defaultGameMode"), new GUIContent("Default GameMode", "Used by levels whose World Settings do not pick one."));
-
-            EditorGUILayout.PropertyField(serialized.FindProperty("loadingScreen"), new GUIContent("Loading Screen", "Shown by Levels.Open while a level loads."));
-
-            UEArchitectureStyles.Section("Gameplay Tags");
-
-            EditorGUILayout.LabelField("One per line, like \"Status.Burning\": parents (\"Status\") come by themselves. Tag fields in the Inspector offer these.", UEArchitectureStyles.MutedLabel);
-
-            EditorGUILayout.PropertyField(serialized.FindProperty("gameplayTags"), new GUIContent("Tags"), true);
-
-            foreach (var tag in settings.GameplayTags.Where(tag => !GameplayTagRegistry.IsValidName(tag)))
+            if (UEArchitectureStyles.Matches(search, "Game", "Game Instance", "GameInstance", "Start Automatically"))
             {
-                EditorGUILayout.HelpBox($"\"{tag}\" is not a valid tag: use letters, digits and underscores separated by dots.", MessageType.Warning);
+                UEArchitectureStyles.Section("Game");
+
+                ClassField.Layout(serialized.FindProperty("gameInstance"), new GUIContent("Game Instance", "Prefab with your GameInstance component. Empty = a plain GameInstance."),
+                                  typeof(GameInstance), options);
+
+                EditorGUILayout.PropertyField(serialized.FindProperty("startAutomatically"), new GUIContent("Start Automatically", "Start before the first scene loads, from any scene you press Play in."));
             }
 
-            serialized.ApplyModifiedProperties();
+            if (UEArchitectureStyles.Matches(search, "Levels", "Default GameMode", "GameMode", "Player Controller", "Default Pawn", "Pawn", "HUD", "Players", "GameState",
+                                             "PlayerState", "Loading Screen"))
+            {
+                UEArchitectureStyles.Section("Levels");
 
-            EditorGUILayout.Space(4);
+                ClassField.Layout(serialized.FindProperty("defaultGameMode"), new GUIContent("Default GameMode", "Used by levels whose World Settings do not pick one."),
+                                  typeof(GameMode), options);
 
-            EditorGUILayout.LabelField(path, UEArchitectureStyles.MutedLabel);
+                var defaultGameMode = serialized.FindProperty("defaultGameMode").objectReferenceValue as GameMode;
 
-            DrawSubsystems_Internal();
+                if (defaultGameMode != null && EditorUtility.IsPersistent(defaultGameMode))
+                {
+                    EditorGUI.indentLevel++;
 
-            DrawSaveGames_Internal();
+                    SelectedGameModePanel.DrawForProject(defaultGameMode);
+
+                    EditorGUI.indentLevel--;
+
+                    EditorGUILayout.Space(4);
+                }
+
+                ClassField.Layout(serialized.FindProperty("loadingScreen"), new GUIContent("Loading Screen", "Shown by Levels.Open while a level loads."), typeof(LoadingScreen), options);
+            }
+
+            if (UEArchitectureStyles.Matches(search, "Gameplay Tags", "Tags"))
+            {
+                UEArchitectureStyles.Section("Gameplay Tags");
+
+                EditorGUILayout.LabelField("One per line, like \"Status.Burning\": parents (\"Status\") come by themselves. Tag fields in the Inspector offer these.", UEArchitectureStyles.MutedLabel);
+
+                EditorGUILayout.PropertyField(serialized.FindProperty("gameplayTags"), new GUIContent("Tags"), true);
+
+                foreach (var tag in ((UEArchitectureSettings)owner).GameplayTags.Where(tag => !GameplayTagRegistry.IsValidName(tag)))
+                {
+                    EditorGUILayout.HelpBox($"\"{tag}\" is not a valid tag: use letters, digits and underscores separated by dots.", MessageType.Warning);
+                }
+            }
+
+            if (serialized.ApplyModifiedProperties() && settings == null)
+            {
+                CopyToAsset_Internal(owner);
+
+                GUIUtility.ExitGUI();
+            }
+
+            if (settings != null)
+            {
+                EditorGUILayout.Space(4);
+
+                EditorGUILayout.LabelField(AssetDatabase.GetAssetPath(settings), UEArchitectureStyles.MutedLabel);
+            }
+
+            if (UEArchitectureStyles.Matches(search, "Subsystems", "Subsystem", "Game", "World"))
+            {
+                DrawSubsystems_Internal();
+            }
+
+            if (UEArchitectureStyles.Matches(search, "Save games", "Save", "Slots"))
+            {
+                DrawSaveGames_Internal();
+            }
+        }
+
+        /// <summary>
+        /// The settings asset, created at <see cref="DefaultAssetPath"/> when the project has none (the first value set on
+        /// the page, or by a '+' picker, creates it).
+        /// </summary>
+        private static Object Materialize_Internal()
+        {
+            var existing = FrameworkIndex.Settings;
+
+            return existing != null ? existing : CreateAsset();
+        }
+
+        private static UEArchitectureSettings Transient_Internal()
+        {
+            if (_transient == null)
+            {
+                _transient = ScriptableObject.CreateInstance<UEArchitectureSettings>();
+
+                _transient.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            return _transient;
+        }
+
+        private static void CopyToAsset_Internal(Object from)
+        {
+            var asset = Materialize_Internal();
+
+            var source = new SerializedObject(from);
+
+            var destination = new SerializedObject(asset);
+
+            var iterator = source.GetIterator();
+
+            var enter = true;
+
+            while (iterator.NextVisible(enter))
+            {
+                enter = false;
+
+                if (iterator.propertyPath != "m_Script")
+                {
+                    destination.CopyFromSerializedProperty(iterator);
+                }
+            }
+
+            destination.ApplyModifiedProperties();
+
+            AssetDatabase.SaveAssetIfDirty(asset);
+
+            if (_transient != null)
+            {
+                Object.DestroyImmediate(_transient);
+
+                _transient = null;
+            }
         }
 
         private static void DrawSaveGames_Internal()
@@ -200,7 +328,10 @@ namespace ModernWestern.UEArchitecture.EditorTools
             UEArchitectureStyles.Row(label, types.Length == 0 ? "none" : string.Join(", ", types), types.Length == 0);
         }
 
-        private static bool IsTestType_Internal(Type type)
+        /// <summary>
+        /// True for classes in test assemblies (their name ends with ".Tests"), which pickers and lists leave out.
+        /// </summary>
+        internal static bool IsTestType_Internal(Type type)
         {
             return type.Assembly.GetName().Name.EndsWith(".Tests", StringComparison.Ordinal);
         }

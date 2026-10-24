@@ -108,6 +108,60 @@ namespace ModernWestern.UEArchitecture.EditorTools
         }
 
         /// <summary>
+        /// The main action of a section (like "Override for this level"), in the accent color. Returns true when pressed.
+        /// </summary>
+        public static bool AccentButton(GUIContent content, params GUILayoutOption[] options)
+        {
+            var previousBackground = GUI.backgroundColor;
+
+            var previousContent = GUI.contentColor;
+
+            GUI.backgroundColor = Accent;
+
+            GUI.contentColor = EditorGUIUtility.isProSkin ? Color.white : new Color(0.15f, 0.08f, 0.35f, 1f);
+
+            try
+            {
+                return GUILayout.Button(content, options);
+            }
+            finally
+            {
+                GUI.backgroundColor = previousBackground;
+
+                GUI.contentColor = previousContent;
+            }
+        }
+
+        /// <summary>
+        /// A small secondary button sized to its text. Returns true when pressed.
+        /// </summary>
+        public static bool SmallButton(GUIContent content)
+        {
+            return GUILayout.Button(content, EditorStyles.miniButton, GUILayout.Width(EditorStyles.miniButton.CalcSize(content).x + 12f));
+        }
+
+        /// <summary>
+        /// True when a settings page search matches one of the words (an empty search matches everything).
+        /// </summary>
+        public static bool Matches(string search, params string[] words)
+        {
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return true;
+            }
+
+            foreach (var word in words)
+            {
+                if (!string.IsNullOrEmpty(word) && word.IndexOf(search.Trim(), System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// A notice with an optional fix button. Returns true when the button was pressed.
         /// </summary>
         public static bool Notice(string message, MessageType type, string button = null)

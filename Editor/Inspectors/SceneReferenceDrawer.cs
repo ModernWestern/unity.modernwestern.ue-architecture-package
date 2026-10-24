@@ -1,6 +1,7 @@
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.SceneManagement;
 
 namespace ModernWestern.UEArchitecture.EditorTools
 {
@@ -64,6 +65,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
     {
         private const float NoticeHeight = 30f;
 
+        private const float ThisLevelWidth = 70f;
+
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             var line = EditorGUIUtility.singleLineHeight;
@@ -81,17 +84,31 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             var current = Scene_Internal(assetProperty, pathProperty);
 
+            var ownLevel = OwnLevel_Internal(property);
+
+            var showThisLevel = !string.IsNullOrEmpty(ownLevel) && (current == null || AssetDatabase.GetAssetPath(current) != ownLevel);
+
+            var fieldRect = showThisLevel ? new Rect(lineRect.x, lineRect.y, lineRect.width - ThisLevelWidth - 2f, lineRect.height) : lineRect;
+
             EditorGUI.BeginProperty(lineRect, label, property);
 
             EditorGUI.BeginChangeCheck();
 
-            var picked = EditorGUI.ObjectField(lineRect, label, current, typeof(SceneAsset), false) as SceneAsset;
+            var picked = EditorGUI.ObjectField(fieldRect, label, current, typeof(SceneAsset), false) as SceneAsset;
 
             if (EditorGUI.EndChangeCheck() || (picked != null && pathProperty.stringValue != AssetDatabase.GetAssetPath(picked)))
             {
                 assetProperty.objectReferenceValue = picked;
 
                 pathProperty.stringValue = picked != null ? AssetDatabase.GetAssetPath(picked) : string.Empty;
+            }
+
+            if (showThisLevel && GUI.Button(new Rect(lineRect.xMax - ThisLevelWidth, lineRect.y, ThisLevelWidth, lineRect.height),
+                                            new GUIContent("This level", "Point to the level this object is in (for example, to reload it)."), EditorStyles.miniButton))
+            {
+                assetProperty.objectReferenceValue = AssetDatabase.LoadAssetAtPath<SceneAsset>(ownLevel);
+
+                pathProperty.stringValue = ownLevel;
             }
 
             EditorGUI.EndProperty();
@@ -113,6 +130,22 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 BuildScenes.Include(pathProperty.stringValue);
             }
+        }
+
+        /// <summary>
+        /// The path of the saved level the inspected object is in, or null (assets, Prefab Mode, unsaved levels, several
+        /// objects).
+        /// </summary>
+        private static string OwnLevel_Internal(SerializedProperty property)
+        {
+            if (property.serializedObject.isEditingMultipleObjects || !(property.serializedObject.targetObject is Component owner) || EditorUtility.IsPersistent(owner))
+            {
+                return null;
+            }
+
+            var scene = owner.gameObject.scene;
+
+            return scene.IsValid() && !string.IsNullOrEmpty(scene.path) && !EditorSceneManager.IsPreviewScene(scene) ? scene.path : null;
         }
 
         private static SceneAsset Scene_Internal(SerializedProperty assetProperty, SerializedProperty pathProperty)

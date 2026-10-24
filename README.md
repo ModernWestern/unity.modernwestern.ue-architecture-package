@@ -329,14 +329,27 @@ public sealed class ArenaPlayerState : PlayerState
 
 ## Editor tools
 
-- **Project Settings > UE Architecture**: GameInstance prefab, default GameMode, loading screen, start automatically, gameplay tags, save game slots. Lists the subsystems of the project.
+- **Class fields with "+"** (like Unreal's class pickers): every GameMode, Player Controller, Pawn, HUD, AI Controller, Game Instance and Loading Screen slot has a picker with the prefabs, the classes that have no prefab yet (picking one builds its prefab at once, no compile), "New script…" (the prefab is built and assigned after the compile; the popup can copy the matching command line), "Variant of" the current prefab, "Open prefab" and "Open script". Prefabs named alike are told apart by their folder, and other levels' own copies are listed apart. Drop a script on the field to build and assign its prefab. A slot waiting for a compile shows a chip with "Finish now"; right-click an overridden slot for "Revert to <prefab>" next to Unity's own items. In Play mode the slots of level objects are locked. Generated prefabs are named after their class, in `Assets/Prefabs/Gameplay` or `Assets/Prefabs/UI` (Project Settings > UE Architecture > Editor).
+- **Project Settings > UE Architecture**: GameInstance prefab, default GameMode (with its default classes editable in place), loading screen, start automatically, gameplay tags, save game slots. Lists the subsystems of the project. The settings asset is created the first time you set something.
+- **World Settings inspector**, like Unreal's: the GameMode Override and the **Selected GameMode** the level uses, with its Player Controller, Default Pawn, HUD, players, GameState and PlayerState. When the level uses the project default or a shared prefab, its rows are read-only (a shared prefab can be edited on purpose with "Edit shared prefab", which says how many levels change) and **Override for this level** makes a variant of it for this level only (`Assets/Prefabs/Modes/<Level>/<Class>.prefab`; two levels with the same name get `Modes/<Level> (<Folder>)`) and uses it; changed rows are bold and right-click reverts them. Clear override, Make project default, and a fix when a Pawn has no Player Start.
+- **GameMode inspector**: the same default classes, and for a GameMode placed in a level, its **scene references** ("Fill N from this scene" assigns every field exactly one object of the level fits, in one Undo step; never overwrites).
+- **Project window > UE Architecture**: Create Prefab (from one or several framework scripts), Create Prefab and Use as (Player Controller, Default Pawn, HUD of the selected GameMode prefab, or of the project default after asking; Project Game Instance, Loading Screen), and on GameMode prefabs Set as Project Default GameMode, Use in Active Level, Create Variant for Active Level, Create Missing Default Classes. The GameMode and World Settings component menus have the same verbs. **Remove Files Made by the Last Action** moves the prefabs, scripts and folders the last action created to the trash (Undo cannot remove files).
 - **Gameplay tag fields**: a nested menu of the project tags; unknown names are flagged.
-- **GameMode inspector**: what it creates (GameState, PlayerState, PlayerController, Pawn, HUD). **World Settings inspector**: the GameMode the level will use and why, and a fix when a Pawn has no Player Start.
-- **SceneReference fields**: scene picker with a one-click "Add to Build".
+- **SceneReference fields**: scene picker with a one-click "Add to Build" and "This level".
 - **Window > UE Architecture > Debugger**: the running game, its subsystems (with their tick group), the level with its GameMode, GameState, players, AIs and subsystems, the moves in progress, active timers and message listeners, with live public values.
 - **Path Following inspector**: in Play mode, the move in progress (status, destination, acceptance radius, seconds without progress) and how the last one ended. A selected agent draws its path and where arrival is measured.
-- **Assets > Create > UE Architecture**: GameInstance, subsystems, GameMode (+ GameState + PlayerState), PlayerController, AIController, Pawn, HUD and LoadingScreen scripts, in the folder's root namespace.
-- **GameObject > UE Architecture**: World Settings, Player Start.
+- **Assets > Create > UE Architecture**: GameInstance, game and level subsystems (also tickable, with `[Tick]`), GameMode (+ GameState + PlayerState, or each in its own file: Project Settings > UE Architecture > Editor > Separate State Files), GameState, PlayerState, PlayerController, AIController, Pawn, HUD, Player Start, LoadingScreen, SaveGame and Message scripts, in the folder's root namespace. A name that is taken (a file or a class) is reported instead of writing "NewPawn 1.cs".
+- **GameObject > UE Architecture**: World Settings, Player Start (in the clicked object's scene or the prefab open in Prefab Mode; a Player Start goes to the Scene view's pivot). Add Component > UE Architecture lists the framework components.
+
+Every button and menu calls a public static method of `UEArchitectureActions` that returns an `ActionResult`, is one Undo step and creates nothing the second time. They also run from the command line, printing one JSON line:
+
+```
+Unity -batchmode -projectPath . -executeMethod ModernWestern.UEArchitecture.EditorTools.UEArchitectureCli.Run -uea override-gamemode scene=Assets/Scenes/Boss.unity -quit
+```
+
+Verbs: `assign-class`, `assign-project-class`, `create-class-prefab`, `create-variant`, `save-as-prefab`, `revert-override`, `override-gamemode`, `create-gamemode-variant`, `set-default-gamemode`, `use-gamemode`, `clear-override`, `create-missing-default-classes`, `fill-scene-references`, `new-script`, `assign`, `remove-files`, `complete-pending`, `list-pending`, `cancel-pending` (`-uea help` lists their arguments). Objects are addressed as `Assets/Scenes/Boss.unity#Path/To/Object` or a prefab path. The JSON line goes to the log (to standard output with `-logFile -`) and to `Library/UEArchitecture/LastCliResult.json`. Exit codes: 0 done, 1 problems, 2 part of the work still waits. "Copy CLI command" copies the arguments only, from `-batchmode` to `-quit`: put the Unity Editor before them (`Unity.exe` on Windows, `Unity.app/Contents/MacOS/Unity` on macOS; in PowerShell, `& "C:\...\Unity.exe"`).
+
+Verbs that write scripts finish after the compile. Either run them with `-quit`, then run `-uea complete-pending` (it opens the levels it fills, saves and closes them); or run them without `-quit`: the batch Editor waits for the compile, finishes the same way and exits by itself, giving up after `timeout=<seconds>` (600 by default).
 
 ## Zero allocations
 
@@ -373,4 +386,4 @@ Unity -batchmode -projectPath <project> -runTests -testPlatform PlayMode -testRe
 
 ## Unity versions
 
-Declared minimum: 2021.3 (not tested yet). Verified with 2022.3 (Built-in pipeline; Editor, and IL2CPP players with High code stripping, including the Patrol sample), 6000.1 (URP with the Input System package only; Editor) and 6000.3 LTS (URP, inside a game; Editor). Without Unity's AI module, everything but navigation compiles and passes its tests.
+Declared minimum: 2021.3 (not tested yet). Verified with 2022.3 (Built-in pipeline; Editor, and IL2CPP players with High code stripping, including the Patrol sample), 6000.1 (URP with the Input System package only; Editor) and 6000.3 LTS (URP, inside a game; Editor). Without Unity's AI module, everything but navigation compiles and passes its tests. The 2.2.0 editor tools also compile and pass their EditMode tests on 6000.6 (and 6000.1).

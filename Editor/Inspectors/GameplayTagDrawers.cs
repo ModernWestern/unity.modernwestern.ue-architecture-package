@@ -10,18 +10,27 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// </summary>
     internal static class ProjectTags
     {
+        /// <summary>
+        /// The project's tags with their parents, cached (see <see cref="FrameworkIndex.Tags"/>).
+        /// </summary>
         public static string[] All()
         {
-            var settings = UEArchitectureSettingsProvider.FindAll().FirstOrDefault();
+            return FrameworkIndex.Tags;
+        }
 
+        /// <summary>
+        /// The valid tags of a list plus their parents, sorted: "Status.Burning" also gives "Status".
+        /// </summary>
+        public static string[] Build(IEnumerable<string> gameplayTags)
+        {
             var names = new SortedSet<string>(System.StringComparer.Ordinal);
 
-            if (settings == null)
+            if (gameplayTags == null)
             {
                 return names.ToArray();
             }
 
-            foreach (var tag in settings.GameplayTags)
+            foreach (var tag in gameplayTags)
             {
                 if (!GameplayTagRegistry.IsValidName(tag))
                 {
@@ -42,7 +51,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         public static bool IsKnown(string tag)
         {
-            return string.IsNullOrEmpty(tag) || All().Contains(tag);
+            return FrameworkIndex.IsKnownTag(tag);
         }
 
         /// <summary>
