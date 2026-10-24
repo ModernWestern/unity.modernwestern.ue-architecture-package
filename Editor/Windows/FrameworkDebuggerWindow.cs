@@ -145,7 +145,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 #endif
 
-                // A per-object key without GetInstanceID, which Unity 6.5 removed.
+                // A per-object key without GetInstanceID, a compile error since Unity 6.5.
                 DrawObject_Internal("ai/" + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(ai), ai, summary, ai, "AI  " + ai.GetType().Name);
             }
 

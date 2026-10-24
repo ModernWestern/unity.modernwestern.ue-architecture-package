@@ -176,7 +176,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             ProjectWindowUtil.ShowCreatedAsset(AssetDatabase.LoadAssetAtPath<MonoScript>(path));
         }
 
-        // Unity 6.4 replaced EndNameEditAction (int instance ids) with AssetCreationEndAction (EntityId); 6.5 removed the old one.
+        // Unity 6.4 replaced EndNameEditAction (int instance ids) with AssetCreationEndAction (EntityId); 6.5 made the old one a compile error.
 #if UNITY_6000_4_OR_NEWER
         private sealed class CreateAction : AssetCreationEndAction
         {

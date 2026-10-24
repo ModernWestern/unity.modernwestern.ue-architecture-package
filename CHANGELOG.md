@@ -3,7 +3,7 @@
 ## [2.1.1] - 2026-10-24
 
 ### Fixed
-- The editor compiles on Unity 6000.4 and later: the script templates use `AssetCreationEndAction` (with `EntityId`) where Unity replaced `EndNameEditAction`, which 6000.5 removed, and the Debugger no longer calls `GetInstanceID`, also removed in 6000.5.
+- The editor compiles on Unity 6000.4 and later: the script templates use `AssetCreationEndAction` (with `EntityId`) where Unity replaced `EndNameEditAction`, which 6000.5 turned into a compile error, and the Debugger no longer calls `GetInstanceID`, also a compile error in 6000.5.
 
 ## [2.1.0] - 2026-10-20
 
