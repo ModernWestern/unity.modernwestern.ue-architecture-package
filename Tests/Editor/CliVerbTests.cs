@@ -306,7 +306,9 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
             foreach (var verb in new[]
                      {
                          "assign-class", "create-class-prefab", "override-gamemode", "set-default-gamemode", "use-gamemode", "clear-override", "create-missing-default-classes",
-                         "fill-scene-references", "complete-pending", "assign-project-class", "create-variant", "save-as-prefab", "revert-override", "create-gamemode-variant"
+                         "fill-scene-references", "complete-pending", "assign-project-class", "create-variant", "save-as-prefab", "revert-override", "create-gamemode-variant",
+                         "create-class", "new-gamemode-kit", "create-level", "set-up-level", "add-player-starts", "create-hud-prefab", "create-loading-screen", "find-children",
+                         "validate", "fix-all"
                      })
             {
                 StringAssert.Contains(verb, help);

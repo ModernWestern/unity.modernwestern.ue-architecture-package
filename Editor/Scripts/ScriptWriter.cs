@@ -46,6 +46,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
         public bool? SplitStates { get; set; }
 
         /// <summary>
+        /// An existing GameState class for a new GameMode (its file is not written). Null: a new one named after the
+        /// GameMode ("ArenaGameState").
+        /// </summary>
+        public Type GameState { get; set; }
+
+        /// <summary>
+        /// An existing PlayerState class for a new GameMode (its file is not written). Null: a new one named after the
+        /// GameMode ("ArenaPlayerState").
+        /// </summary>
+        public Type PlayerState { get; set; }
+
+        /// <summary>
         /// The folder may be inside an embedded package (Packages/com.studio.game/..., kept in the project and writable),
         /// for a folder the user picked in the Project window (Assets > Create > UE Architecture). Generated defaults, the
         /// '+' picker and the command line always write under Assets/.
@@ -86,6 +98,12 @@ namespace ModernWestern.UEArchitecture.EditorTools
         public readonly List<string> Problems = new();
 
         public readonly List<string> Notes = new();
+
+        /// <summary>
+        /// The assembly references the scripts need and their asmdef lacks (each also listed in <see cref="Problems"/>):
+        /// fixed by adding them to the asmdef (<see cref="AsmdefReferences"/>).
+        /// </summary>
+        public readonly List<MissingReference> MissingReferences = new();
 
         public bool Ok => Problems.Count == 0 && Scripts.Count > 0;
 
@@ -260,29 +278,46 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 var split = kind == CreateFrameworkScripts.Kind.GameMode && (request.SplitStates ?? conventions.SplitStateFiles);
 
+                // A new GameMode with existing GameState or PlayerState classes names them instead of writing new ones.
+                var chosenStates = kind == CreateFrameworkScripts.Kind.GameMode && (request.GameState != null || request.PlayerState != null);
+
+                var mainSource = chosenStates
+                                     ? ClassTemplates.GameModeSource(className, rootNamespace, request.GameState, request.PlayerState, split)
+                                     : kind.HasValue
+                                         ? ClassTemplates.Source(kind.Value, className, rootNamespace, split, request.Tick)
+                                         : ClassTemplates.ForParent(parent, className, rootNamespace);
+
+                var mainClasses = chosenStates
+                                      ? ClassTemplates.GameModeClasses(className, request.GameState, request.PlayerState, split)
+                                      : kind.HasValue
+                                          ? ClassTemplates.DeclaredClasses(kind.Value, className, split)
+                                          : new[] { className };
+
                 // One file per class; a GameMode script with its states in their own files makes three.
-                var files = new List<(string Name, string Source, CreateFrameworkScripts.Kind? Kind)>
-                {
-                    (className, kind.HasValue ? ClassTemplates.Source(kind.Value, className, rootNamespace, split, request.Tick) : ClassTemplates.ForParent(parent, className, rootNamespace), kind)
-                };
+                var files = new List<(string Name, string Source, string[] Classes, CreateFrameworkScripts.Kind? Kind)> { (className, mainSource, mainClasses, kind) };
 
                 if (split)
                 {
                     var baseName = ClassTemplates.BaseName(className, "GameMode", "Mode");
 
-                    files.Add((baseName + "GameState", ClassTemplates.Source(CreateFrameworkScripts.Kind.GameState, baseName + "GameState", rootNamespace), CreateFrameworkScripts.Kind.GameState));
+                    if (request.GameState == null)
+                    {
+                        files.Add((baseName + "GameState", ClassTemplates.Source(CreateFrameworkScripts.Kind.GameState, baseName + "GameState", rootNamespace), new[] { baseName + "GameState" },
+                                   CreateFrameworkScripts.Kind.GameState));
+                    }
 
-                    files.Add((baseName + "PlayerState", ClassTemplates.Source(CreateFrameworkScripts.Kind.PlayerState, baseName + "PlayerState", rootNamespace),
-                               CreateFrameworkScripts.Kind.PlayerState));
+                    if (request.PlayerState == null)
+                    {
+                        files.Add((baseName + "PlayerState", ClassTemplates.Source(CreateFrameworkScripts.Kind.PlayerState, baseName + "PlayerState", rootNamespace),
+                                   new[] { baseName + "PlayerState" }, CreateFrameworkScripts.Kind.PlayerState));
+                    }
                 }
 
                 foreach (var file in files)
                 {
                     var path = $"{folder}/{file.Name}.cs";
 
-                    var declared = (file.Kind.HasValue ? ClassTemplates.DeclaredClasses(file.Kind.Value, file.Name, split) : new[] { file.Name })
-                                   .Select(name => string.IsNullOrEmpty(rootNamespace) ? name : rootNamespace + "." + name)
-                                   .ToArray();
+                    var declared = file.Classes.Select(name => string.IsNullOrEmpty(rootNamespace) ? name : rootNamespace + "." + name).ToArray();
 
                     if (!paths.Add(path))
                     {
@@ -315,7 +350,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                     CheckHiddenNames_Internal(plan, context, file.Kind, parent, file.Name, rootNamespace, path);
 
-                    CheckReferences_Internal(plan, context.AssemblyOf(path), parent, path);
+                    CheckReferences_Internal(plan, context.AssemblyOf(path), parent, path, file.Name == className ? new[] { request.GameState, request.PlayerState } : null);
 
                     plan.Scripts.Add(new PlannedScript
                     {
@@ -476,7 +511,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             }
         }
 
-        private static void CheckReferences_Internal(ScriptPlan plan, ScriptAssembly target, Type parent, string path)
+        private static void CheckReferences_Internal(ScriptPlan plan, ScriptAssembly target, Type parent, string path, Type[] alsoUsed = null)
         {
             if (!target.Known || string.IsNullOrEmpty(target.Name))
             {
@@ -494,6 +529,16 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 needed.Add(parentAssembly);
             }
 
+            foreach (var used in alsoUsed ?? Type.EmptyTypes)
+            {
+                var name = used?.Assembly.GetName().Name;
+
+                if (!string.IsNullOrEmpty(name) && !needed.Contains(name))
+                {
+                    needed.Add(name);
+                }
+            }
+
             var where = string.IsNullOrEmpty(target.AsmdefPath) ? target.Name : $"{target.Name} ({target.AsmdefPath})";
 
             foreach (var reference in needed)
@@ -505,12 +550,24 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 if (reference.StartsWith("Assembly-CSharp", StringComparison.Ordinal))
                 {
-                    plan.Problems.Add($"{parent.Name} is in {reference}, which assemblies with an asmdef cannot use. Pick a folder without an asmdef, or move {parent.Name} into one.");
+                    var owner = parent != null && parent.Assembly.GetName().Name == reference ? parent.Name : "A class it uses";
+
+                    plan.Problems.Add($"{owner} is in {reference}, which assemblies with an asmdef cannot use. Pick a folder without an asmdef, or move it into one.");
 
                     continue;
                 }
 
-                plan.Problems.Add($"The assembly {where} does not reference {reference}, so the new script would not compile. Add {reference} to its references, or pick another folder.");
+                var problem = $"The assembly {where} does not reference {reference}, so the new script would not compile. Add {reference} to its references, or pick another folder.";
+
+                if (!plan.Problems.Contains(problem))
+                {
+                    plan.Problems.Add(problem);
+                }
+
+                if (!string.IsNullOrEmpty(target.AsmdefPath) && !plan.MissingReferences.Any(missing => missing.AsmdefPath == target.AsmdefPath && missing.Assembly == reference))
+                {
+                    plan.MissingReferences.Add(new MissingReference(target.AsmdefPath, reference, problem));
+                }
             }
         }
     }

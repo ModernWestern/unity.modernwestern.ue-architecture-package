@@ -174,6 +174,131 @@ namespace ModernWestern.UEArchitecture.EditorTools
         }
 
         /// <summary>
+        /// The source of a GameMode whose GameState and PlayerState are picked: an existing class is named (and its
+        /// namespace used), a missing one (null) is new and named after the GameMode ("ArenaGameState"), written in this
+        /// file, or in its own file when <paramref name="splitStates"/> (the GameState and PlayerState kinds write those).
+        /// </summary>
+        public static string GameModeSource(string typedName, string rootNamespace, Type gameState, Type playerState, bool splitStates)
+        {
+            var name = CreateFrameworkScripts.FileName(CreateFrameworkScripts.Kind.GameMode, typedName);
+
+            var baseName = BaseName(name, "GameMode", "Mode");
+
+            var usings = new SortedSet<string>(StringComparer.Ordinal) { "UnityEngine", FrameworkNamespace };
+
+            foreach (var state in new[] { gameState, playerState })
+            {
+                if (state != null && !string.IsNullOrEmpty(state.Namespace) && state.Namespace != rootNamespace && !state.IsNested)
+                {
+                    usings.Add(state.Namespace);
+                }
+            }
+
+            var gameStateName = gameState != null ? TypeReference(gameState, name) : baseName + "GameState";
+
+            var playerStateName = playerState != null ? TypeReference(playerState, name) : baseName + "PlayerState";
+
+            var code = new StringBuilder();
+
+            foreach (var item in usings)
+            {
+                code.Append("using ").Append(item).Append(";\n");
+            }
+
+            code.Append('\n');
+
+            code.Append("// The rules of a level. Put it on a prefab, fill in its default classes (PlayerController, Pawn, HUD) and pick it in a\n");
+
+            code.Append("// level's World Settings, or as the default GameMode in Project Settings > UE Architecture.\n");
+
+            var elsewhere = new List<string>();
+
+            if (gameState == null && splitStates)
+            {
+                elsewhere.Add(baseName + "GameState.cs");
+            }
+
+            if (playerState == null && splitStates)
+            {
+                elsewhere.Add(baseName + "PlayerState.cs");
+            }
+
+            if (elsewhere.Count > 0)
+            {
+                code.Append("// Its ").Append(gameState == null && splitStates ? playerState == null ? "GameState and PlayerState are" : "GameState is" : "PlayerState is").Append(" in ")
+                    .Append(string.Join(" and ", elsewhere)).Append(".\n");
+            }
+
+            code.Append("public class ").Append(name).Append(" : GameMode<").Append(gameStateName).Append(", ").Append(playerStateName).Append(">\n");
+
+            code.Append(@"{
+    protected override void StartPlay()
+    {
+        // The players are spawned: the match starts.
+    }
+
+    protected override void OnPostLogin(PlayerController player)
+    {
+    }
+}
+");
+
+            if (gameState == null && !splitStates)
+            {
+                code.Append(@"
+// The state of the match everyone can read (score to win, time left...). Created by the GameMode for each level.
+public class ").Append(baseName).Append(@"GameState : GameState
+{
+    protected override void OnBeginPlay()
+    {
+    }
+
+    protected override void OnEndPlay()
+    {
+    }
+}
+");
+            }
+
+            if (playerState == null && !splitStates)
+            {
+                code.Append(@"
+// The state of one player (name, score, team...). Survives the Pawn dying.
+public class ").Append(baseName).Append(@"PlayerState : PlayerState
+{
+    public int Score { get; set; }
+}
+");
+            }
+
+            return Wrap(code.ToString(), rootNamespace);
+        }
+
+        /// <summary>
+        /// The classes <see cref="GameModeSource"/> declares in the GameMode's own file.
+        /// </summary>
+        public static string[] GameModeClasses(string typedName, Type gameState, Type playerState, bool splitStates)
+        {
+            var name = CreateFrameworkScripts.FileName(CreateFrameworkScripts.Kind.GameMode, typedName);
+
+            var baseName = BaseName(name, "GameMode", "Mode");
+
+            var classes = new List<string> { name };
+
+            if (gameState == null && !splitStates)
+            {
+                classes.Add(baseName + "GameState");
+            }
+
+            if (playerState == null && !splitStates)
+            {
+                classes.Add(baseName + "PlayerState");
+            }
+
+            return classes.ToArray();
+        }
+
+        /// <summary>
         /// The classes a template kind declares: a GameMode script also declares its GameState and PlayerState, unless
         /// they are split into their own files.
         /// </summary>

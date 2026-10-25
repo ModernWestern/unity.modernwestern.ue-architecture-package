@@ -512,7 +512,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             }
 
             var dropdown = new ClassPickerDropdown(dropdownState, state.FieldType, state.Title, pick => Picked_Internal(pick, target), NoneLabel(state.Path, state.FrameworkField), extras,
-                                                   state.Level);
+                                                   state.Level, Creators(state.FieldType));
 
             dropdown.Show(plusRect);
         }
@@ -562,7 +562,80 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     RequestNamePopup_Internal(target);
 
                     break;
+
+                case ClassPickKind.ReadyPrefab:
+                    // Built and assigned now, with no compile to wait for: an unsaved level needs no saving first.
+                    Run_Internal(() => UEArchitectureActions.CreateUiPrefabAndAssign_Internal(target.Resolve(), target.Path, pick.Type));
+
+                    break;
+
+                case ClassPickKind.GameModeKit:
+                    OpenKit_Internal(target);
+
+                    break;
+
+                case ClassPickKind.ClassWindow:
+                    var owner = target.Owners.FirstOrDefault(candidate => candidate != null);
+
+                    NewClassWindow.Open(target.FieldType, owner is UEArchitectureSettings ? null : owner, target.Path,
+                                        GeneratorNaming.ScriptFolderFor(ScriptPathOf_Internal(owner), UEArchitectureEditorSettings.Current));
+
+                    break;
             }
+        }
+
+        /// <summary>
+        /// The picker's ready-made choices for a field's class: "New HUD prefab (Canvas ready)", "New default loading
+        /// screen", "New Game Mode set…", and "New class (more options)…" everywhere.
+        /// </summary>
+        internal static List<ClassPick> Creators(Type fieldType)
+        {
+            var creators = new List<ClassPick>();
+
+            if (fieldType == null)
+            {
+                return creators;
+            }
+
+            if (typeof(HUD).IsAssignableFrom(fieldType) && !fieldType.IsAbstract && UiBuilders.Available)
+            {
+                creators.Add(new ClassPick(ClassPickKind.ReadyPrefab, fieldType, null, "New HUD prefab (Canvas ready)"));
+            }
+
+            if (typeof(LoadingScreen).IsAssignableFrom(fieldType) && !fieldType.IsAbstract && UiBuilders.Available)
+            {
+                creators.Add(new ClassPick(ClassPickKind.ReadyPrefab, fieldType, null, "New default loading screen"));
+            }
+
+            if (fieldType == typeof(GameMode))
+            {
+                creators.Add(new ClassPick(ClassPickKind.GameModeKit, fieldType, null, "New Game Mode set…"));
+            }
+
+            if (ClassRequestTypes.CanBeParent(fieldType))
+            {
+                creators.Add(new ClassPick(ClassPickKind.ClassWindow, fieldType, null, "New class (more options)…"));
+            }
+
+            return creators;
+        }
+
+        /// <summary>
+        /// "New Game Mode set…": the kit, used by the field's level (World Settings) or as the project default.
+        /// </summary>
+        private static void OpenKit_Internal(FieldTarget target)
+        {
+            var owner = target.Owners.FirstOrDefault(candidate => candidate != null);
+
+            if (owner is WorldSettings worldSettings && worldSettings.gameObject.scene.IsValid())
+            {
+                GameModeKitWindow.Open(worldSettings.gameObject.scene, KitDestination.ThisLevel);
+
+                return;
+            }
+
+            GameModeKitWindow.Open(UnityEngine.SceneManagement.SceneManager.GetActiveScene(),
+                                   owner is UEArchitectureSettings || owner == null ? KitDestination.ProjectDefault : KitDestination.Nothing);
         }
 
         private static void RequestNamePopup_Internal(FieldTarget target)

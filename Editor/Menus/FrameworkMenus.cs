@@ -8,7 +8,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// <summary>
     /// GameObject > UE Architecture (and the Hierarchy's right-click menu): World Settings and Player Start, placed in the
     /// right place: under the clicked object, in the scene it belongs to, in the prefab open in Prefab Mode, and a Player
-    /// Start at the Scene view's pivot.
+    /// Start at the Scene view's pivot, dropped to the ground and facing the view.
     /// </summary>
     internal static class FrameworkMenus
     {
@@ -85,7 +85,17 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             if (parent == null && atPivot && SceneView.lastActiveSceneView != null)
             {
-                gameObject.transform.position = SceneView.lastActiveSceneView.pivot;
+                var view = SceneView.lastActiveSceneView;
+
+                // On the ground below the pivot (the NavMesh when there is one), facing the way the view looks.
+                gameObject.transform.position = LevelSetup.Ground(view.pivot);
+
+                var forward = view.camera != null ? Vector3.ProjectOnPlane(view.camera.transform.forward, Vector3.up) : Vector3.zero;
+
+                if (forward.sqrMagnitude > 0.0001f)
+                {
+                    gameObject.transform.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
+                }
             }
 
             GameObjectUtility.EnsureUniqueNameForSibling(gameObject);

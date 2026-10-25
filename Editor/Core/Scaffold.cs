@@ -21,12 +21,93 @@ namespace ModernWestern.UEArchitecture.EditorTools
     {
         private static readonly Dictionary<KeyValuePair<Type, string>, KeyValuePair<Type, FieldInfo>> _fields = new();
 
+        private static int _inPlaceDepth;
+
+        private static int _oneStepDepth;
+
         /// <summary>
         /// Starts one gesture: an Undo group with this name, and a result that collects what was created and changed.
         /// </summary>
         public static ScaffoldOp Begin(string name, string verb = null)
         {
             return new ScaffoldOp(name, verb);
+        }
+
+        /// <summary>
+        /// Runs several gestures ("Fix all safe", one tag on several Player Starts) as one Undo step named
+        /// <paramref name="name"/>.
+        /// </summary>
+        public static void AsOneUndoStep(string name, Action gestures)
+        {
+            if (_oneStepDepth > 0)
+            {
+                gestures?.Invoke();
+
+                return;
+            }
+
+            Undo.IncrementCurrentGroup();
+
+            Undo.SetCurrentGroupName(name);
+
+            OneStepGroup_Internal = Undo.GetCurrentGroup();
+
+            _oneStepDepth++;
+
+            try
+            {
+                gestures?.Invoke();
+            }
+            finally
+            {
+                _oneStepDepth--;
+
+                Undo.CollapseUndoOperations(OneStepGroup_Internal);
+
+                Undo.SetCurrentGroupName(name);
+            }
+        }
+
+        /// <summary>
+        /// True inside <see cref="AsOneUndoStep"/>: gestures join its Undo group instead of starting their own.
+        /// </summary>
+        internal static bool InOneUndoStep_Internal => _oneStepDepth > 0;
+
+        internal static int OneStepGroup_Internal { get; private set; }
+
+        /// <summary>
+        /// True inside <see cref="EditPrefabsInPlace"/>: prefab assets are loaded, changed and saved instead of opened in
+        /// Prefab Mode, as in batch mode.
+        /// </summary>
+        public static bool EditsPrefabsInPlace => _inPlaceDepth > 0;
+
+        /// <summary>
+        /// While the returned scope is open, edits of prefab assets that are not open in Prefab Mode change the saved file
+        /// directly (like batch mode) instead of opening the prefab: batch fixes then never switch the Scene view to Prefab
+        /// Mode halfway. Those changes are saved at once and Undo cannot take them back.
+        /// </summary>
+        public static IDisposable EditPrefabsInPlace()
+        {
+            _inPlaceDepth++;
+
+            return new InPlaceScope();
+        }
+
+        private sealed class InPlaceScope : IDisposable
+        {
+            private bool _disposed;
+
+            public void Dispose()
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+
+                _inPlaceDepth--;
+            }
         }
 
         /// <summary>
@@ -317,6 +398,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             Result = new ActionResult(verb ?? string.Empty);
 
+            // Inside Scaffold.AsOneUndoStep ("Fix all safe") the gesture is part of that one step.
+            if (Scaffold.InOneUndoStep_Internal)
+            {
+                _undoGroup = Scaffold.OneStepGroup_Internal;
+
+                return;
+            }
+
             Undo.IncrementCurrentGroup();
 
             Undo.SetCurrentGroupName(Name);
@@ -374,8 +463,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// <item>a prefab instance: the instance (overrides of that copy only), or with <see cref="EditIntent.SourcePrefab"/>
         /// its prefab asset;</item>
         /// <item>a prefab asset: the copy open in Prefab Mode when it is open there; otherwise, in the Editor, the prefab is
-        /// opened in Prefab Mode and its copy is edited (Undo-able, saved like any Prefab Mode change); headless, its
-        /// contents are loaded, edited and saved (EditPrefabContentsScope).</item>
+        /// opened in Prefab Mode and its copy is edited (Undo-able, saved like any Prefab Mode change); headless or inside
+        /// <see cref="Scaffold.EditPrefabsInPlace"/>, its contents are loaded, edited and saved (EditPrefabContentsScope).</item>
         /// </list>
         /// False, with a problem, when there is nothing to edit or the object cannot change now (Play mode).
         /// </summary>
@@ -437,7 +526,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     return false;
                 }
 
-                if (Application.isBatchMode)
+                if (Application.isBatchMode || Scaffold.EditsPrefabsInPlace)
                 {
                     return EditLoaded_Internal(target, assetPath, edit);
                 }
@@ -898,6 +987,15 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// </summary>
         public GameObject CreateSceneObject(Scene scene, string name, params Type[] types)
         {
+            return CreateSceneObject(scene, name, true, types);
+        }
+
+        /// <summary>
+        /// <see cref="CreateSceneObject(Scene, string, Type[])"/>, without an Undo record when <paramref name="undo"/> is
+        /// false (a level made by the action itself and closed again: there is nothing to undo in it).
+        /// </summary>
+        public GameObject CreateSceneObject(Scene scene, string name, bool undo, params Type[] types)
+        {
             if (!scene.IsValid() || !scene.isLoaded || EditorSceneManager.IsPreviewScene(scene))
             {
                 Problem($"Cannot add \"{name}\": its level is not open.");
@@ -929,7 +1027,10 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 SceneManager.MoveGameObjectToScene(created, scene);
             }
 
-            Undo.RegisterCreatedObjectUndo(created, Name);
+            if (undo)
+            {
+                Undo.RegisterCreatedObjectUndo(created, Name);
+            }
 
             foreach (var type in types)
             {
@@ -938,7 +1039,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     continue;
                 }
 
-                ApplyDefaultPresets_Internal(Undo.AddComponent(created, type));
+                ApplyDefaultPresets_Internal(undo ? Undo.AddComponent(created, type) : created.AddComponent(type));
             }
 
             Result.AddCreated(ActionResult.Describe(created));
@@ -1068,6 +1169,12 @@ namespace ModernWestern.UEArchitecture.EditorTools
             finally
             {
                 Undo.CollapseUndoOperations(_undoGroup);
+            }
+
+            // The Hierarchy and Project events come on the next Editor update: problems must not be read stale before.
+            if (Result.Created.Count + Result.Changed.Count > 0)
+            {
+                ProblemProviders.Invalidate();
             }
 
             if (Result.Ok)
@@ -1380,7 +1487,10 @@ namespace ModernWestern.UEArchitecture.EditorTools
             return true;
         }
 
-        private static void ApplyDefaultPresets_Internal(Component component)
+        /// <summary>
+        /// Applies the project's default presets to a component that was just added (Preset Manager), like Add Component.
+        /// </summary>
+        internal static void ApplyDefaultPresets_Internal(Component component)
         {
             if (component == null)
             {

@@ -21,7 +21,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// Without -quit, in batch mode, the Editor waits for the compile, finishes like "complete-pending" (opening the
     /// levels it fills) and exits by itself; it gives up after timeout=&lt;seconds&gt; (600 by default).</para>
     /// </summary>
-    public static class UEArchitectureCli
+    public static partial class UEArchitectureCli
     {
         public const string ResultPath = "Library/UEArchitecture/LastCliResult.json";
 
@@ -53,7 +53,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
                                     "create-gamemode-variant prefab=<path> scene=<path> [folder=Assets/...] | clear-override scene=<path> | create-missing-default-classes target=<GameMode address> [folder=Assets/...] | " +
                                     "fill-scene-references target=<scene address> [component=<Class>] [all=true] | " +
                                     "new-script class=<Name> parent=<Class> [folder=Assets/...] [prefab=true] [assign-to=<address> property=<field> [component=<Class>]] | " +
-                                    "remove-files paths=<path;path;...> (moves files a run created to the trash). " +
+                                    "remove-files paths=<path;path;...> (moves files a run created to the trash) | " +
+                                    WorkflowHelp +
                                     "Without -quit a run that waits for a compile exits by itself (timeout=<seconds>, 600 by default). " +
                                     "Exit codes: 0 ok, 1 problems, 2 still pending.";
 
@@ -470,6 +471,13 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 
                 default:
+                    var workflow = DispatchWorkflow_Internal(arguments, session);
+
+                    if (workflow != null)
+                    {
+                        return workflow;
+                    }
+
                     var unknown = ActionResult.Fail(arguments.Verb, $"Unknown verb \"{arguments.Verb}\".");
 
                     unknown.AddNote(Help);

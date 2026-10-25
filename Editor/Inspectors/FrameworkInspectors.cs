@@ -46,6 +46,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             SelectedGameModePanel.DrawFooter(gameMode);
 
+            ProblemsSection.Draw(gameMode);
+
             SceneReferencesSection.Draw(serializedObject);
 
             if (Application.isPlaying && gameMode.HasStartedPlay)
@@ -110,25 +112,21 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         private static void DrawLevel_Internal(UnityEngine.SceneManagement.Scene scene)
         {
-            var gameMode = GameModeInfo.Effective(scene, out GameModeSource _);
+            var report = ProblemProviders.ForLevel(scene);
 
             UEArchitectureStyles.Section("This level");
 
-            var starts = GameModeInfo.Count<PlayerStart>(scene);
+            UEArchitectureStyles.Row("Player Starts", $"{report.Starts} of {report.Players}", report.Starts < report.Players);
 
-            UEArchitectureStyles.Row("Player Starts", starts.ToString(), starts == 0);
+            UEArchitectureStyles.Row("Build Settings", report.InBuild ? "included" : "not included", !report.InBuild);
 
-            if (gameMode != null && gameMode.DefaultPawnPrefab != null && starts == 0 &&
-                UEArchitectureStyles.Notice("No Player Start in this level: players will spawn where the GameMode is.", MessageType.Warning, "Add Player Start"))
+            // The level's own problems; those of its objects show on them.
+            foreach (var problem in report.Problems)
             {
-                FrameworkMenus.CreatePlayerStart(scene);
-
-                GUIUtility.ExitGUI();
-            }
-
-            if (GameModeInfo.Count<WorldSettings>(scene) > 1)
-            {
-                EditorGUILayout.HelpBox("This level has more than one World Settings; only the first one is used.", MessageType.Warning);
+                if (problem.Context == null)
+                {
+                    ProblemsSection.DrawProblem(problem);
+                }
             }
         }
     }

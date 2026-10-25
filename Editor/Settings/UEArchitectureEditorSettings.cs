@@ -4,6 +4,43 @@ using UnityEngine;
 namespace ModernWestern.UEArchitecture.EditorTools
 {
     /// <summary>
+    /// What happens when Play starts in a level that has no GameMode.
+    /// </summary>
+    internal enum PlayStartPolicy
+    {
+        /// <summary>
+        /// Nothing.
+        /// </summary>
+        Ignore,
+
+        /// <summary>
+        /// One warning in the Console per level and session: "Animations.unity has no GameMode: players get no input".
+        /// </summary>
+        Warn
+    }
+
+    /// <summary>
+    /// What a new Pawn prefab of the Game Mode Kit gets on its root.
+    /// </summary>
+    public enum PawnPreset
+    {
+        /// <summary>
+        /// The Pawn component only.
+        /// </summary>
+        Empty,
+
+        /// <summary>
+        /// A capsule you can see (no collider), 2 m tall, standing on the root.
+        /// </summary>
+        Capsule,
+
+        /// <summary>
+        /// The capsule plus a NavMeshAgent and Path Following, ready for MoveTo (needs Unity's AI module).
+        /// </summary>
+        CapsuleNavAgent
+    }
+
+    /// <summary>
     /// Project Settings > UE Architecture > Editor: where the editor tools put the scripts and prefabs they generate and
     /// what they call them. Shared by the team in ProjectSettings/ (editor only, never in builds).
     /// </summary>
@@ -36,6 +73,15 @@ namespace ModernWestern.UEArchitecture.EditorTools
         [SerializeField, Tooltip("New GameMode scripts put their GameState and PlayerState in their own files (ArenaGameState.cs, ArenaPlayerState.cs) instead of in the GameMode's file.")]
         private bool splitStateFiles;
 
+        [SerializeField, Tooltip("What a new Pawn prefab of the Game Mode Kit gets: nothing, a capsule you can see, or the capsule with a NavMeshAgent.")]
+        private PawnPreset pawnPreset = PawnPreset.Capsule;
+
+        [SerializeField, Tooltip("The screen size new HUD and loading screen Canvases are laid out for (Canvas Scaler, Scale With Screen Size).")]
+        private Vector2Int referenceResolution = new(1920, 1080);
+
+        [SerializeField, Tooltip("Pressing Play in a level without a GameMode: say it once in the Console, or say nothing.")]
+        private PlayStartPolicy playStartCheck = PlayStartPolicy.Warn;
+
         /// <summary>
         /// The current conventions, as a plain value.
         /// </summary>
@@ -52,6 +98,25 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// The conventions every tool uses.
         /// </summary>
         public static GeneratorConventions Current => instance.Conventions;
+
+        /// <summary>
+        /// What a new Pawn prefab of the Game Mode Kit gets by default.
+        /// </summary>
+        public PawnPreset DefaultPawnPreset => pawnPreset;
+
+        /// <summary>
+        /// The screen size of new HUD and loading screen Canvases (1920 x 1080 by default; never below 1 x 1).
+        /// </summary>
+        public Vector2Int ReferenceResolution => new(Mathf.Max(1, referenceResolution.x), Mathf.Max(1, referenceResolution.y));
+
+        /// <summary>
+        /// What pressing Play in a level without a GameMode does.
+        /// </summary>
+        public PlayStartPolicy PlayStartCheck
+        {
+            get => playStartCheck;
+            internal set => playStartCheck = value;
+        }
 
         /// <summary>
         /// Writes the settings to ProjectSettings/UEArchitectureEditorSettings.asset (text, for version control).
@@ -81,6 +146,12 @@ namespace ModernWestern.UEArchitecture.EditorTools
             overrideFolderPattern = GeneratorConventions.DefaultOverrideFolderPattern;
 
             splitStateFiles = false;
+
+            pawnPreset = PawnPreset.Capsule;
+
+            referenceResolution = new Vector2Int(1920, 1080);
+
+            playStartCheck = PlayStartPolicy.Warn;
         }
 
         /// <summary>
@@ -130,7 +201,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 label = "Editor",
                 guiHandler = Draw_Internal,
-                keywords = new[] { "Prefab", "Folder", "Scripts", "Naming", "Override", "Modes", "Generated" }
+                keywords = new[] { "Prefab", "Folder", "Scripts", "Naming", "Override", "Modes", "Generated", "Pawn", "Canvas", "Resolution", "Play" }
             };
         }
 
@@ -176,6 +247,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 UEArchitectureStyles.Section("Level overrides");
 
                 EditorGUILayout.PropertyField(_serialized.FindProperty("overrideFolderPattern"), new GUIContent("Override Folder"));
+
+                UEArchitectureStyles.Section("New prefabs and levels");
+
+                EditorGUILayout.PropertyField(_serialized.FindProperty("pawnPreset"), new GUIContent("Pawn Preset", _serialized.FindProperty("pawnPreset").tooltip));
+
+                EditorGUILayout.PropertyField(_serialized.FindProperty("referenceResolution"), new GUIContent("UI Reference Resolution", _serialized.FindProperty("referenceResolution").tooltip));
+
+                EditorGUILayout.PropertyField(_serialized.FindProperty("playStartCheck"), new GUIContent("Play Without a GameMode", _serialized.FindProperty("playStartCheck").tooltip));
 
                 if (_serialized.ApplyModifiedProperties())
                 {

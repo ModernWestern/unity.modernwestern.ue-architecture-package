@@ -1,6 +1,6 @@
 {
   "name": "com.modernwestern.ue-architecture",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "displayName": "UE Architecture",
   "description": "Unreal Engine's gameplay framework for Unity, zero-allocation where it matters.\n\n- GameInstance that starts by itself from any scene, with Subsystems (no more singletons).\n- World Subsystems that live as long as the level.\n- GameMode, GameState, PlayerState, PlayerController, Pawn, HUD and PlayerStart, chosen per level in World Settings.\n- Navigation: MoveTo on any controller, like Unreal's AI MoveTo. Every move ends with exactly one event: Success, Partial, Blocked, Invalid or Aborted.\n- Levels: open and stream levels with a loading screen.\n- Messages: typed messages between systems (like Lyra's GameplayMessageSubsystem).\n- Timers: like FTimerManager, replacing Invoke and coroutines.\n\nWorks on its own, and with ObserverVM installed the HUD binds its Widgets to the framework by itself.",
   "unity": "2021.3",

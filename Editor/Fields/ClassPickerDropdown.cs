@@ -45,7 +45,22 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// <summary>
         /// Open the script of the current prefab's class.
         /// </summary>
-        OpenScript
+        OpenScript,
+
+        /// <summary>
+        /// Build a ready prefab (a HUD that is a Canvas, a working loading screen) and assign it.
+        /// </summary>
+        ReadyPrefab,
+
+        /// <summary>
+        /// Open the Game Mode Kit (a GameMode with every class it uses).
+        /// </summary>
+        GameModeKit,
+
+        /// <summary>
+        /// Open the New Framework Class window, its prefab going into this field.
+        /// </summary>
+        ClassWindow
     }
 
     /// <summary>
@@ -229,14 +244,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         private readonly string _level;
 
+        private readonly IReadOnlyList<ClassPick> _creators;
+
         /// <summary>
         /// A picker for <paramref name="baseType"/>. <paramref name="extras"/> (actions on the current value, such as
         /// "Variant of Arena Pawn", "Open prefab" and "Open script") come first. <paramref name="level"/> is the level the
         /// field belongs to (its own copies are labelled "this level"; other levels' copies are listed apart).
         /// </summary>
         public ClassPickerDropdown(AdvancedDropdownState state, Type baseType, string title, Action<ClassPick> picked, string noneLabel = DefaultNoneLabel,
-                                   IReadOnlyList<ClassPick> extras = null, string level = null) : base(state ?? new AdvancedDropdownState())
+                                   IReadOnlyList<ClassPick> extras = null, string level = null, IReadOnlyList<ClassPick> creators = null) : base(state ?? new AdvancedDropdownState())
         {
+            _creators = creators ?? Array.Empty<ClassPick>();
+
             _baseType = baseType;
 
             _title = string.IsNullOrEmpty(title) ? ObjectNames.NicifyVariableName(baseType?.Name ?? "Class") : title;
@@ -297,6 +316,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
             root.AddSeparator();
 
             Add_Internal(root, new ClassPick(ClassPickKind.NewScript, _baseType, null, NewScriptLabel), scriptIcon);
+
+            foreach (var creator in _creators)
+            {
+                Add_Internal(root, creator, creator.Kind == ClassPickKind.ReadyPrefab ? prefabIcon : scriptIcon);
+            }
 
             if (!string.IsNullOrEmpty(_noneLabel))
             {
