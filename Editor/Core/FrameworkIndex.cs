@@ -17,7 +17,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// prefabs an AssetPostprocessor reports as changed are read again.
     /// </summary>
     [InitializeOnLoad]
-    internal static class FrameworkIndex
+    internal static partial class FrameworkIndex
     {
         /// <summary>
         /// The framework classes whose prefabs are indexed (a prefab counts when its root has one of them, or a subclass).
@@ -413,6 +413,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             _tags = null;
 
+            ClearLevelCaches_Internal();
+
             Version++;
         }
 
@@ -430,12 +432,17 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             _gameModesUsing = null;
 
+            LevelAssetsChanged_Internal(new[] { path }, false);
+
             Version++;
         }
 
         internal static void OnAssetsChanged_Internal(string[] imported, string[] deleted, string[] moved, string[] movedFrom)
         {
             var any = false;
+
+            // The levels list keeps what it read until something it used changes (see LevelSummaryOf).
+            LevelAssetsChanged_Internal(imported, deleted.Length + moved.Length > 0);
 
             foreach (var path in imported.Concat(deleted).Concat(moved).Concat(movedFrom))
             {

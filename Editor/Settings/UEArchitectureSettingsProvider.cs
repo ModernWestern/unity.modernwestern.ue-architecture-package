@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using System.Collections.Generic;
 using Object = UnityEngine.Object;
 
 namespace ModernWestern.UEArchitecture.EditorTools
@@ -15,6 +16,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
     {
         private static UEArchitectureSettings _transient;
 
+        private static readonly GameplayTagManager _tags = new();
+
+        private static readonly string[] Keywords =
+        {
+            "GameInstance", "Game Instance", "GameMode", "Default GameMode", "Player Controller", "Pawn", "HUD", "Subsystem", "Loading Screen", "Gameplay Tags", "Tags",
+            "Tag constants", "Save", "Unreal", "Maps & Modes", "Levels", "Build Settings", "Scenes", "Tick"
+        };
+
         public const string SettingsPath = "Project/UE Architecture";
 
         public const string DefaultAssetPath = "Assets/Resources/" + UEArchitectureSettings.ResourcesName + ".asset";
@@ -26,12 +35,30 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 label = "UE Architecture",
                 guiHandler = Draw_Internal,
-                keywords = new[]
-                {
-                    "GameInstance", "Game Instance", "GameMode", "Default GameMode", "Player Controller", "Pawn", "HUD", "Subsystem", "Loading Screen", "Gameplay Tags",
-                    "Save", "Unreal", "Maps & Modes"
-                }
+                hasSearchInterestHandler = HasSearchInterest_Internal,
+                keywords = Keywords
             };
+        }
+
+        /// <summary>
+        /// The page answers a search for its words, and for the name of a tag, a subsystem or a level it lists. Runs on
+        /// every keystroke of the Project Settings search, so it only compares names: levels by path (the project's and
+        /// Build Settings'), without reading them.
+        /// </summary>
+        private static bool HasSearchInterest_Internal(string search)
+        {
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return true;
+            }
+
+            return UEArchitectureStyles.Matches(search, Keywords) || UEArchitectureStyles.Matches(search, "UE Architecture") || FrameworkIndex.Tags.Any(tag => UEArchitectureStyles.Matches(search, tag)) ||
+                   SubsystemList.Project().Any(row => UEArchitectureStyles.Matches(search, row.Type.Name)) || LevelPaths_Internal().Any(path => UEArchitectureStyles.Matches(search, path));
+        }
+
+        internal static IEnumerable<string> LevelPaths_Internal()
+        {
+            return FrameworkIndex.ProjectScenes.Concat(EditorBuildSettings.scenes.Select(scene => scene.path)).Where(path => !string.IsNullOrEmpty(path));
         }
 
         public static UEArchitectureSettings[] FindAll()
@@ -177,18 +204,17 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 ClassField.Layout(serialized.FindProperty("loadingScreen"), new GUIContent("Loading Screen", "Shown by Levels.Open while a level loads."), typeof(LoadingScreen), options);
             }
 
-            if (UEArchitectureStyles.Matches(search, "Gameplay Tags", "Tags"))
+            // A search for a tag's name ("burn") shows this section too, with the tree filtered by it.
+            var tagHit = !string.IsNullOrWhiteSpace(search) && FrameworkIndex.Tags.Any(tag => tag.IndexOf(search.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
+
+            if (UEArchitectureStyles.Matches(search, "Gameplay Tags", "Tags", "Tag constants") || tagHit)
             {
                 UEArchitectureStyles.Section("Gameplay Tags");
 
-                EditorGUILayout.LabelField("One per line, like \"Status.Burning\": parents (\"Status\") come by themselves. Tag fields in the Inspector offer these.", UEArchitectureStyles.MutedLabel);
+                EditorGUILayout.LabelField("Like \"Status.Burning\": parents (\"Status\") come by themselves, and Status.Burning matches Status. Tag fields in the Inspector offer these.",
+                                           UEArchitectureStyles.MutedLabel);
 
-                EditorGUILayout.PropertyField(serialized.FindProperty("gameplayTags"), new GUIContent("Tags"), true);
-
-                foreach (var tag in ((UEArchitectureSettings)owner).GameplayTags.Where(tag => !GameplayTagRegistry.IsValidName(tag)))
-                {
-                    EditorGUILayout.HelpBox($"\"{tag}\" is not a valid tag: use letters, digits and underscores separated by dots.", MessageType.Warning);
-                }
+                _tags.Draw(serialized, UEArchitectureStyles.Matches(search, "Gameplay Tags", "Tags", "Tag constants") ? null : search);
             }
 
             if (serialized.ApplyModifiedProperties() && settings == null)
@@ -205,9 +231,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 EditorGUILayout.LabelField(AssetDatabase.GetAssetPath(settings), UEArchitectureStyles.MutedLabel);
             }
 
-            if (UEArchitectureStyles.Matches(search, "Subsystems", "Subsystem", "Game", "World"))
+            if (UEArchitectureStyles.Matches(search, "Subsystems", "Subsystem", "Game", "World", "Tick") || SubsystemList.Project().Any(row => UEArchitectureStyles.Matches(search, row.Type.Name)))
             {
-                DrawSubsystems_Internal();
+                ProjectListsSection.DrawSubsystems(UEArchitectureStyles.Matches(search, "Subsystems", "Subsystem", "Game", "World", "Tick") ? null : search);
+            }
+
+            if (UEArchitectureStyles.Matches(search, "Levels", "Level", "Build Settings", "Build", "Scenes", "Scene") || FrameworkIndex.LevelRows().Any(row => UEArchitectureStyles.Matches(search, row.Path)))
+            {
+                ProjectListsSection.DrawLevels(UEArchitectureStyles.Matches(search, "Levels", "Level", "Build Settings", "Build", "Scenes", "Scene") ? null : search);
             }
 
             if (UEArchitectureStyles.Matches(search, "Save games", "Save", "Slots"))
@@ -306,26 +337,6 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     }
                 }
             }
-        }
-
-        private static void DrawSubsystems_Internal()
-        {
-            UEArchitectureStyles.Section("Subsystems in the project");
-
-            DrawTypes_Internal("Game (whole game)", typeof(GameInstanceSubsystem));
-
-            DrawTypes_Internal("World (each level)", typeof(WorldSubsystem));
-
-            EditorGUILayout.LabelField("Created by themselves: derive from GameInstanceSubsystem or WorldSubsystem (Assets > Create > UE Architecture).", UEArchitectureStyles.MutedLabel);
-        }
-
-        private static void DrawTypes_Internal(string label, Type baseType)
-        {
-            var found = TypeCache.GetTypesDerivedFrom(baseType).Where(type => !type.IsAbstract && !IsTestType_Internal(type)).ToArray();
-
-            var types = found.Select(type => UEArchitectureStyles.TypeName(type, found)).OrderBy(name => name).ToArray();
-
-            UEArchitectureStyles.Row(label, types.Length == 0 ? "none" : string.Join(", ", types), types.Length == 0);
         }
 
         /// <summary>

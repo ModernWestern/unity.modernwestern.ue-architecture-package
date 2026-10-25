@@ -36,6 +36,8 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
 
         private readonly LoadingScreen _loadingScreen;
 
+        private readonly string[] _gameplayTags;
+
         public EditorTestKit(string folder)
         {
             Folder = folder;
@@ -57,6 +59,8 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
                 _gameInstance = _settings.GameInstancePrefab;
 
                 _loadingScreen = _settings.LoadingScreen;
+
+                _gameplayTags = _settings.GameplayTags.ToArray();
             }
 
             var defaults = GeneratorConventions.Defaults;
@@ -171,6 +175,15 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
                 serialized.FindProperty("gameInstance").objectReferenceValue = _gameInstance;
 
                 serialized.FindProperty("loadingScreen").objectReferenceValue = _loadingScreen;
+
+                var tags = serialized.FindProperty("gameplayTags");
+
+                tags.arraySize = _gameplayTags.Length;
+
+                for (var i = 0; i < _gameplayTags.Length; i++)
+                {
+                    tags.GetArrayElementAtIndex(i).stringValue = _gameplayTags[i];
+                }
 
                 serialized.ApplyModifiedPropertiesWithoutUndo();
 
