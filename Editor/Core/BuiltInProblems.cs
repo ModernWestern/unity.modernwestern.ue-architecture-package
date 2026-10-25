@@ -104,13 +104,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 report.Problems.Add(problem);
             }
-            else if (report.GameMode.DefaultPawnPrefab != null && report.Starts < report.Players)
+            else if (report.GameMode.DefaultPawnPrefab != null && report.Starts < report.Players - report.PlayersWithPlacedPawns)
             {
-                var message = report.Starts == 0
-                                  ? "No Player Start in this level: players spawn where the GameMode is."
-                                  : $"{report.Players} players start but there {(report.Starts == 1 ? "is 1 Player Start" : $"are {report.Starts} Player Starts")}: they share them.";
+                // Players that possess a Pawn placed for them (Auto Possess Player) need no Player Start.
+                var spawned = report.Players - report.PlayersWithPlacedPawns;
 
-                var players = report.Players;
+                var message = report.Starts == 0
+                                  ? spawned == report.Players
+                                        ? "No Player Start in this level: players spawn where the GameMode is."
+                                        : "No Player Start in this level: players without a placed Pawn spawn where the GameMode is."
+                                  : $"{spawned} players spawn but there {(report.Starts == 1 ? "is 1 Player Start" : $"are {report.Starts} Player Starts")}: they share them.";
+
+                var players = spawned;
 
                 report.Problems.Add(new Problem(ProblemSeverity.Warning, message).WithFix(report.Starts == 0 ? "Add Player Start" : "Add Player Starts", "add-player-starts", true,
                                                                                          () => UEArchitectureActions.AddPlayerStarts(scene, players)));
@@ -198,6 +203,22 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 return;
             }
 
+            if (pawn.AutoPossessPlayer >= 0 && !EditorUtility.IsPersistent(pawn) && pawn.gameObject.scene.IsValid() &&
+                !UnityEditor.SceneManagement.EditorSceneManager.IsPreviewScene(pawn.gameObject.scene))
+            {
+                PlacedPlayerPawn_Internal(pawn, problems);
+
+                // The runtime never gives a placed Pawn with a player set to its AI: the AI rows say nothing true about it.
+                if (autoPossess.enumValueIndex != (int)AutoPossessAI.Disabled)
+                {
+                    problems.Add(new Problem(ProblemSeverity.Info,
+                                             $"Auto Possess AI does nothing here: a Pawn placed for {GameModeInfo.PlayerLabel(pawn.AutoPossessPlayer)} (Auto Possess Player) waits for that player, " +
+                                             "and only your code can give it an AI.", component));
+                }
+
+                return;
+            }
+
             if (autoPossess.enumValueIndex != (int)AutoPossessAI.Disabled && controller.objectReferenceValue == null)
             {
                 var only = UEArchitectureActions.OnlyAIControllerClass_Internal();
@@ -213,6 +234,45 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 problems.Add(new Problem(ProblemSeverity.Info,
                                          "An AI Controller is set but Auto Possess AI is Disabled: nothing uses it until your code calls SpawnDefaultController. Turn it on for placed or spawned Pawns.",
                                          component).WithFix("Placed and spawned", "turn-on-auto-possess", false, () => UEArchitectureActions.SetAutoPossess(pawn, AutoPossessAI.PlacedInWorldOrSpawned)));
+            }
+        }
+
+        private static void PlacedPlayerPawn_Internal(Pawn pawn, List<Problem> problems)
+        {
+            var scene = pawn.gameObject.scene;
+
+            var player = GameModeInfo.PlayerLabel(pawn.AutoPossessPlayer);
+
+            var first = GameModeInfo.PlacedPlayerPawn(scene, pawn.AutoPossessPlayer);
+
+            if (first != null && first != pawn)
+            {
+                problems.Add(new Problem(ProblemSeverity.Warning,
+                                         $"{player} already possesses the placed Pawn \"{first.gameObject.name}\": this one is never possessed by a player (each player takes one, once), " +
+                                         "and its Auto Possess AI waits for the player. Only your code can possess it.", pawn)
+                                 .WithFix("Clear Auto Possess Player", "clear-auto-possess-player", false, () => UEArchitectureActions.SetAutoPossessPlayer(pawn, -1)));
+
+                return;
+            }
+
+            if (!pawn.gameObject.activeInHierarchy)
+            {
+                problems.Add(new Problem(ProblemSeverity.Info, $"Inactive: {player} does not possess it (the GameMode looks for active Pawns as the level begins).", pawn));
+
+                return;
+            }
+
+            var gameMode = GameModeInfo.Effective(scene, out GameModeSource _);
+
+            if (gameMode == null)
+            {
+                problems.Add(new Problem(ProblemSeverity.Info, $"This level has no GameMode, so no player joins: nobody possesses it as {player}.", pawn));
+            }
+            else if (!GameModeInfo.JoinsAtStart(gameMode, pawn.AutoPossessPlayer))
+            {
+                problems.Add(new Problem(ProblemSeverity.Info,
+                                         $"Waits for {player} to join: {gameMode.gameObject.name} starts with {GameModeInfo.PlayersText(gameMode.PlayersAtStart)}, so {player} possesses this Pawn " +
+                                         "only when your code calls AddPlayer.", pawn));
             }
         }
 

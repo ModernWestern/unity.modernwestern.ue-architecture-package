@@ -91,6 +91,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             EditorGUILayout.LabelField($"Starts {report.Starts}/{report.Players}  ·  {build}", UEArchitectureStyles.MutedLabel);
 
+            if (report.GameMode != null && report.PlacedPawn != null &&
+                GUILayout.Button(new GUIContent(report.PlacedPawnWaits
+                                                    ? $"The placed Pawn \"{report.PlacedPawn.gameObject.name}\" waits for {GameModeInfo.PlayerLabel(0)} to join"
+                                                    : $"{GameModeInfo.PlayerLabel(0)} possesses the placed Pawn \"{report.PlacedPawn.gameObject.name}\"", "Select it"), UEArchitectureStyles.MutedLabel))
+            {
+                Selection.activeObject = report.PlacedPawn.gameObject;
+            }
+
             var next = report.Next;
 
             if (next != null)

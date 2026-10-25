@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -28,7 +29,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
     }
 
     /// <summary>
-    /// The Pawn inspector: "Controlled by" (the player, AI or nobody yet), the AI section (Auto Possess AI and the AI
+    /// The Pawn inspector: "Controlled by" (the player, AI or nobody yet), the Possession section (Auto Possess Player for a
+    /// Pawn placed in a level), the AI section (Auto Possess AI and the AI
     /// Controller class field, with fixes), and with Unity's AI module a Navigation section (NavMeshAgent and Path
     /// Following in one click, Block Time and Block Distance inline, Off the NavMesh with Snap, No NavMesh in this
     /// level). Fields of subclasses are drawn as usual below.
@@ -39,7 +41,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
     {
         private const string AiFoldoutKey = "UEArchitecture.PawnEditor.AI";
 
-        private static readonly string[] _excluded = { "m_Script", "autoPossessAI", "aiController" };
+        private static readonly string[] _excluded = { "m_Script", "autoPossessPlayer", "autoPossessAI", "aiController" };
+
+        private static readonly string[] _aiFixes = { "create-ai-controller", "turn-on-auto-possess" };
+
+        private static GUIContent[] _playerOptions;
 
         private int _version = -1;
 
@@ -72,6 +78,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 UEArchitectureStyles.Row("Controlled by", _controlledBy, _control == PawnControl.Nobody);
             }
+
+            DrawPossession_Internal(single);
 
             DrawAi_Internal(single);
 
@@ -113,6 +121,51 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                     return PawnControl.Player;
                 }
+            }
+
+            // A Pawn placed for a player: the runtime never gives it to its AI as the level begins (the player wins), so the
+            // answer is that player or nobody.
+            if (placedInLevel && pawn.AutoPossessPlayer >= 0)
+            {
+                var player = GameModeInfo.PlayerLabel(pawn.AutoPossessPlayer);
+
+                var first = GameModeInfo.PlacedPlayerPawn(pawn.gameObject.scene, pawn.AutoPossessPlayer);
+
+                if (first != null && first != pawn)
+                {
+                    text = $"nobody yet: {player} possesses the placed Pawn \"{first.gameObject.name}\"; this one is left to your code";
+
+                    return PawnControl.Nobody;
+                }
+
+                if (first == null)
+                {
+                    text = $"nobody yet: it is inactive, so {player} does not possess it";
+
+                    return PawnControl.Nobody;
+                }
+
+                var gameMode = GameModeInfo.Effective(pawn.gameObject.scene, out GameModeSource _);
+
+                if (gameMode == null)
+                {
+                    text = $"nobody: this level has no GameMode, so {player} never joins";
+
+                    return PawnControl.Nobody;
+                }
+
+                text = GameModeInfo.JoinsAtStart(gameMode, pawn.AutoPossessPlayer)
+                           ? $"{player} (Auto Possess Player: it gets this Pawn instead of the Default Pawn)"
+                           : $"{player} once it joins (Auto Possess Player; {gameMode.gameObject.name} starts with {GameModeInfo.PlayersText(gameMode.PlayersAtStart)}, so it waits for AddPlayer)";
+
+                return PawnControl.Player;
+            }
+
+            if (!placedInLevel && asset != null && asset.AutoPossessPlayer >= 0)
+            {
+                text = $"{GameModeInfo.PlayerLabel(asset.AutoPossessPlayer)}, for a copy placed in a level (Auto Possess Player; the first one found, once per level)";
+
+                return PawnControl.Player;
             }
 
             if (placedInLevel)
@@ -238,6 +291,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             foreach (var problem in ProblemProviders.For(single))
             {
+                if (Array.IndexOf(_aiFixes, problem.FixId) < 0)
+                {
+                    continue;
+                }
+
                 if (problem.FixId != "turn-on-auto-possess")
                 {
                     ProblemsSection.DrawProblem(problem);
@@ -262,6 +320,72 @@ namespace ModernWestern.UEArchitecture.EditorTools
                             GUIUtility.ExitGUI();
                         }
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Auto Possess Player: "No player" or "Player 1".."Player 8", with the problems of a placed Pawn's player.
+        /// </summary>
+        private void DrawPossession_Internal(Pawn single)
+        {
+            var player = serializedObject.FindProperty("autoPossessPlayer");
+
+            if (player == null)
+            {
+                return;
+            }
+
+            UEArchitectureStyles.Section("Possession");
+
+            if (_playerOptions == null)
+            {
+                _playerOptions = new GUIContent[UEArchitectureActions.MaxPlayers + 1];
+
+                for (var i = 0; i < _playerOptions.Length; i++)
+                {
+                    _playerOptions[i] = new GUIContent(GameModeInfo.PlayerLabel(i - 1));
+                }
+            }
+
+            using (var change = new EditorGUI.ChangeCheckScope())
+            {
+                EditorGUI.showMixedValue = player.hasMultipleDifferentValues;
+
+                var label = new GUIContent("Auto Possess Player",
+                                           "Placed in a level: the player that possesses this Pawn when it first joins, instead of getting the GameMode's Default Pawn (once per level; " +
+                                           "Auto Possess AI then waits for the player).");
+
+                var picked = EditorGUILayout.Popup(label, Mathf.Clamp(player.intValue + 1, 0, _playerOptions.Length - 1), _playerOptions) - 1;
+
+                EditorGUI.showMixedValue = false;
+
+                if (change.changed)
+                {
+                    player.intValue = picked;
+
+                    serializedObject.ApplyModifiedProperties();
+
+                    ProblemProviders.Invalidate();
+                }
+            }
+
+            if (single == null)
+            {
+                return;
+            }
+
+            if (EditorUtility.IsPersistent(single) && single.AutoPossessPlayer >= 0)
+            {
+                EditorGUILayout.LabelField("Applies to a copy of this prefab placed in a level (the first one found, once per level; its Auto Possess AI then waits for the player). " +
+                                           "The GameMode never spawns it for the player.", UEArchitectureStyles.MutedLabel);
+            }
+
+            foreach (var problem in ProblemProviders.For(single))
+            {
+                if (Array.IndexOf(_aiFixes, problem.FixId) < 0)
+                {
+                    ProblemsSection.DrawProblem(problem);
                 }
             }
         }

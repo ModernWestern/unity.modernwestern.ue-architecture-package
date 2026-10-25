@@ -338,7 +338,8 @@ namespace ModernWestern.UEArchitecture
             EndingPlay = null;
         }
 
-        // Pawns placed in the level with Auto Possess AI get their controller as the level begins.
+        // Pawns placed in the level with Auto Possess AI get their controller as the level begins. A Pawn placed for a player
+        // (Auto Possess Player) waits for that player instead, as in Unreal: the player wins over the AI.
         private static void PossessPlacedPawns_Internal(Scene scene)
         {
             if (!scene.IsValid() || !scene.isLoaded)
@@ -350,7 +351,7 @@ namespace ModernWestern.UEArchitecture
             {
                 foreach (var pawn in root.GetComponentsInChildren<Pawn>())
                 {
-                    if (pawn.Controller == null && pawn.AutoPossesses_Internal(false))
+                    if (pawn.Controller == null && pawn.AutoPossessPlayer < 0 && pawn.AutoPossesses_Internal(false))
                     {
                         pawn.SpawnDefaultController();
                     }

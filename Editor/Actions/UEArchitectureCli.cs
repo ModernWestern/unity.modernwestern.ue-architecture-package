@@ -54,7 +54,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                                     "fill-scene-references target=<scene address> [component=<Class>] [all=true] | " +
                                     "new-script class=<Name> parent=<Class> [folder=Assets/...] [prefab=true] [assign-to=<address> property=<field> [component=<Class>]] | " +
                                     "remove-files paths=<path;path;...> (moves files a run created to the trash) | " +
-                                    WorkflowHelp + PawnHelp +
+                                    WorkflowHelp + PawnHelp + ConvertHelp +
                                     "Without -quit a run that waits for a compile exits by itself (timeout=<seconds>, 600 by default). " +
                                     "Exit codes: 0 ok, 1 problems, 2 still pending.";
 
@@ -502,7 +502,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 
                 default:
-                    var workflow = DispatchWorkflow_Internal(arguments, session) ?? DispatchPawn_Internal(arguments, session);
+                    var workflow = DispatchWorkflow_Internal(arguments, session) ?? DispatchPawn_Internal(arguments, session) ?? DispatchConvert_Internal(arguments, session);
 
                     if (workflow != null)
                     {

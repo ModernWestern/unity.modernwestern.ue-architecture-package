@@ -20,6 +20,7 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
         [TestCase(typeof(UEArchitectureSettings), "gameInstance")]
         [TestCase(typeof(UEArchitectureSettings), "defaultGameMode")]
         [TestCase(typeof(UEArchitectureSettings), "loadingScreen")]
+        [TestCase(typeof(Pawn), "autoPossessPlayer")]
         [TestCase(typeof(Pawn), "autoPossessAI")]
         [TestCase(typeof(Pawn), "aiController")]
         [TestCase(typeof(LoadingScreen), "canvasGroup")]

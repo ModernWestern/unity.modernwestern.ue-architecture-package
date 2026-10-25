@@ -122,6 +122,50 @@ namespace ModernWestern.UEArchitecture.EditorTools
         }
 
         /// <summary>
+        /// Sets which player possesses a Pawn placed in a level when it joins (Auto Possess Player): 0 = Player 1, -1 = no
+        /// player. That player then gets this Pawn instead of the GameMode's Default Pawn. On a prefab it applies to the
+        /// copies placed in levels.
+        /// </summary>
+        public static ActionResult SetAutoPossessPlayer(Pawn pawn, int playerIndex)
+        {
+            using (var op = Scaffold.Begin("Set Auto Possess Player", "set-auto-possess-player"))
+            {
+                if (pawn == null)
+                {
+                    op.Problem("Pick a Pawn.");
+
+                    return op.Result;
+                }
+
+                if (playerIndex < -1 || playerIndex >= MaxPlayers)
+                {
+                    op.Problem($"Pick a player from 1 to {MaxPlayers}, or none.");
+
+                    return op.Result;
+                }
+
+                op.Assign(pawn, "autoPossessPlayer", playerIndex);
+
+                op.Result.Result = pawn;
+
+                var player = GameModeInfo.PlayerLabel(playerIndex);
+
+                op.Result.Message = op.Result.Changed.Count == 0
+                                        ? playerIndex < 0 ? $"No player possesses {pawn.name} by itself already." : $"{player} already possesses {pawn.name}."
+                                        : playerIndex < 0
+                                            ? $"{pawn.name}: no player possesses it by itself now."
+                                            : $"{player} possesses {pawn.name} when it joins, instead of getting the Default Pawn.";
+
+                return op.Result;
+            }
+        }
+
+        /// <summary>
+        /// The highest player Auto Possess Player offers.
+        /// </summary>
+        public const int MaxPlayers = 8;
+
+        /// <summary>
         /// Add Path Following: each object (a Pawn, a NavMeshAgent, a GameObject, in a level or a prefab) gets a NavMeshAgent
         /// when it has none and Path Following, so MoveTo works and its Block Time and Block Distance can be tuned per
         /// prefab. Several prefabs are changed and saved directly (Undo cannot take that back). Objects that have both are

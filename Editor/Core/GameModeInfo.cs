@@ -341,6 +341,61 @@ namespace ModernWestern.UEArchitecture.EditorTools
             return false;
         }
 
+        /// <summary>
+        /// The Pawns placed in a level with Auto Possess Player, in the order the runtime finds them (root objects, then
+        /// their children; active ones only).
+        /// </summary>
+        public static System.Collections.Generic.List<Pawn> PlacedPlayerPawns(Scene scene)
+        {
+            var pawns = new System.Collections.Generic.List<Pawn>();
+
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                return pawns;
+            }
+
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                pawns.AddRange(root.GetComponentsInChildren<Pawn>().Where(pawn => pawn.AutoPossessPlayer >= 0));
+            }
+
+            return pawns;
+        }
+
+        /// <summary>
+        /// The Pawn placed in a level that player <paramref name="playerIndex"/> (0 = Player 1) possesses when it joins
+        /// (Auto Possess Player), as the runtime picks it: the first one found. Null when there is none.
+        /// </summary>
+        public static Pawn PlacedPlayerPawn(Scene scene, int playerIndex)
+        {
+            return playerIndex < 0 ? null : PlacedPlayerPawns(scene).FirstOrDefault(pawn => pawn.AutoPossessPlayer == playerIndex);
+        }
+
+        /// <summary>
+        /// True when player <paramref name="playerIndex"/> (0 = Player 1) is created as the level begins: the GameMode's
+        /// Players at Start is more than its index (0 players at start = nobody joins until AddPlayer).
+        /// </summary>
+        public static bool JoinsAtStart(GameMode gameMode, int playerIndex)
+        {
+            return gameMode != null && playerIndex >= 0 && playerIndex < gameMode.PlayersAtStart;
+        }
+
+        /// <summary>
+        /// "no players", "1 player", "2 players".
+        /// </summary>
+        public static string PlayersText(int count)
+        {
+            return count <= 0 ? "no players" : count == 1 ? "1 player" : count + " players";
+        }
+
+        /// <summary>
+        /// "Player 1" for 0.
+        /// </summary>
+        public static string PlayerLabel(int playerIndex)
+        {
+            return playerIndex < 0 ? "No player" : "Player " + (playerIndex + 1);
+        }
+
         private static System.Collections.Generic.IEnumerable<GameObject> GameModesIn_Internal(string folder)
         {
             return FrameworkIndex.PrefabsWith(typeof(GameMode)).Where(prefab => GeneratorNaming.FolderOf(AssetDatabase.GetAssetPath(prefab)) == folder);

@@ -35,6 +35,13 @@ namespace ModernWestern.UEArchitecture
 
         private readonly List<AIController> _bots = new();
 
+        // Pawns placed in the level with Auto Possess Player, found once as the level begins.
+        private readonly List<Pawn> _placedPawns = new(4);
+
+        private static readonly List<GameObject> RootsBuffer = new();
+
+        private static readonly List<Pawn> PawnsBuffer = new();
+
         private int _botCount;
 
         private int _nextPlayerId;
@@ -139,12 +146,25 @@ namespace ModernWestern.UEArchitecture
         }
 
         /// <summary>
-        /// Puts a player back in the game: spawns its default Pawn at a PlayerStart if it has none (e.g. after dying), or
-        /// moves its current Pawn there. Like Unreal's RestartPlayer.
+        /// Puts a player back in the game: if it has no Pawn (it just joined, or its Pawn died), it possesses the Pawn placed
+        /// in the level for it (Auto Possess Player) the first time, when there is a free one, else gets its default Pawn
+        /// spawned at a PlayerStart; if it has one, that Pawn is moved there. Like Unreal's RestartPlayer.
         /// </summary>
         public virtual void RestartPlayer(PlayerController player)
         {
-            if (player == null || (defaultPawn == null && player.Pawn == null))
+            if (player == null)
+            {
+                return;
+            }
+
+            // A Pawn placed for this player wins over the Default Pawn, once per level, as in Unreal. One your code already
+            // possessed is left alone.
+            if (player.Pawn == null && PossessPlacedPawn_Internal(player))
+            {
+                return;
+            }
+
+            if (defaultPawn == null && player.Pawn == null)
             {
                 return;
             }
@@ -320,7 +340,7 @@ namespace ModernWestern.UEArchitecture
                 }
             }
 
-            gameMode.InitGame_Internal();
+            gameMode.InitGame_Internal(scene);
 
             return gameMode;
         }
@@ -401,7 +421,7 @@ namespace ModernWestern.UEArchitecture
             _hasStartedPlay = false;
         }
 
-        private void InitGame_Internal()
+        private void InitGame_Internal(Scene scene)
         {
             _ownedPlayers.Clear();
 
@@ -415,11 +435,79 @@ namespace ModernWestern.UEArchitecture
 
             _warnedNoStart = false;
 
+            CollectPlacedPawns_Internal(scene);
+
             GameState = CreateGameState() ?? new GameState();
 
             GameState.Init_Internal(this);
 
             Guard_Internal(InitGame);
+        }
+
+        // Once per level, with reused lists: nothing is searched again when a player joins or respawns.
+        private void CollectPlacedPawns_Internal(Scene scene)
+        {
+            _placedPawns.Clear();
+
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                return;
+            }
+
+            scene.GetRootGameObjects(RootsBuffer);
+
+            foreach (var root in RootsBuffer)
+            {
+                root.GetComponentsInChildren(false, PawnsBuffer);
+
+                foreach (var pawn in PawnsBuffer)
+                {
+                    if (pawn.AutoPossessPlayer >= 0)
+                    {
+                        _placedPawns.Add(pawn);
+                    }
+                }
+            }
+
+            RootsBuffer.Clear();
+
+            PawnsBuffer.Clear();
+        }
+
+        // One-shot, as in Unreal: the first time a player needs a Pawn, it takes the first free Pawn placed for it, and every
+        // Pawn placed for that player is then crossed off the list (slots set to null, no allocation). A later RestartPlayer
+        // (its Pawn died, a duplicate placed for the same player, a vehicle it left) spawns the Default Pawn instead.
+        private bool PossessPlacedPawn_Internal(PlayerController player)
+        {
+            Pawn picked = null;
+
+            for (var i = 0; i < _placedPawns.Count; i++)
+            {
+                var pawn = _placedPawns[i];
+
+                // Destroyed (or already crossed off), or meant for another player.
+                if (pawn == null || pawn.AutoPossessPlayer != player.PlayerIndex)
+                {
+                    continue;
+                }
+
+                _placedPawns[i] = null;
+
+                // One your code already possessed is left alone.
+                if (picked == null && pawn.Controller == null)
+                {
+                    picked = pawn;
+                }
+            }
+
+            if (picked == null)
+            {
+                return false;
+            }
+
+            player.Possess(picked);
+
+            return true;
         }
 
         private static void BeginPlayFor_Internal(PlayerController player)

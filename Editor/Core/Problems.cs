@@ -134,6 +134,22 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         public bool InBuild;
 
+        /// <summary>
+        /// The Pawn placed in the level that Player 1 possesses (Auto Possess Player), or null.
+        /// </summary>
+        public Pawn PlacedPawn;
+
+        /// <summary>
+        /// True when <see cref="PlacedPawn"/> waits for Player 1 to join: the GameMode starts with no players (or there is
+        /// no GameMode), so only AddPlayer makes Player 1.
+        /// </summary>
+        public bool PlacedPawnWaits;
+
+        /// <summary>
+        /// How many of the players at start possess a placed Pawn instead of spawning the Default Pawn at a Player Start.
+        /// </summary>
+        public int PlayersWithPlacedPawns;
+
         public readonly List<Problem> Problems = new();
 
         /// <summary>
@@ -295,6 +311,15 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 report.Starts = LevelSetup.Starts_Internal(scene).Count;
 
                 report.Players = report.GameMode != null ? Mathf.Max(1, report.GameMode.PlayersAtStart) : 1;
+
+                var placed = GameModeInfo.PlacedPlayerPawns(scene);
+
+                report.PlacedPawn = placed.FirstOrDefault(pawn => pawn.AutoPossessPlayer == 0);
+
+                // The real Players at Start (0 = nobody joins as the level begins), not the at-least-one count of the starts.
+                report.PlacedPawnWaits = report.PlacedPawn != null && !GameModeInfo.JoinsAtStart(report.GameMode, 0);
+
+                report.PlayersWithPlacedPawns = placed.Select(pawn => pawn.AutoPossessPlayer).Where(index => GameModeInfo.JoinsAtStart(report.GameMode, index)).Distinct().Count();
 
                 report.InBuild = !string.IsNullOrEmpty(scene.path) && EditorBuildSettings.scenes.Any(item => item.enabled && item.path == scene.path);
 

@@ -44,6 +44,18 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
 
                 Assert.IsTrue(ClassField.IsLocked(new Object[] { start }), "The '+' picker and drops are off.");
 
+                Assert.IsFalse(UEArchitectureActions.ChangeComponentClass(start, typeof(HUD), false).Ok, "Change Class of a level object is refused.");
+
+                var pawn = holder.AddComponent<Pawn>();
+
+                Assert.IsFalse(UEArchitectureActions.SetAutoPossessPlayer(pawn, 0).Ok, "Auto Possess Player of a level object is refused.");
+
+                var convert = UEArchitectureActions.ConvertToFrameworkClass(UnityEditor.MonoScript.FromMonoBehaviour(start), typeof(Pawn), dryRun: false);
+
+                Assert.IsFalse(convert.Ok, "Script edits wait for Edit mode.");
+
+                StringAssert.Contains("Leave Play mode first", convert.Problems[0]);
+
                 Exception thrown = null;
 
                 try

@@ -47,6 +47,11 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// The level whose own GameMode this is: the rows' "Variant of X" then makes "Variant for this level".
         /// </summary>
         public string SceneName;
+
+        /// <summary>
+        /// The level the panel is shown for (World Settings), so its rows can say what is placed in it. Default otherwise.
+        /// </summary>
+        public Scene Scene;
     }
 
     /// <summary>
@@ -144,7 +149,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 ClassField.Layout(serialized.FindProperty("defaultPawn"), _defaultPawnLabel, typeof(Pawn), options);
 
-                PawnNote_Internal(serialized);
+                PawnNote_Internal(serialized, context);
 
                 ClassField.Layout(serialized.FindProperty("hud"), _hudLabel, typeof(HUD), options);
 
@@ -184,7 +189,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                     InstanceNotice_Internal(gameMode);
 
-                    Draw(gameMode, new GameModePanelContext { Mode = GameModePanelMode.Level });
+                    Draw(gameMode, new GameModePanelContext { Mode = GameModePanelMode.Level, Scene = scene });
 
                     return;
 
@@ -198,7 +203,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                     var editShared = !own && _editShared.Contains(gameMode.gameObject);
 
-                    Draw(gameMode, new GameModePanelContext { Mode = GameModePanelMode.Level, SceneName = ownLevel, ReadOnly = !own && !editShared });
+                    Draw(gameMode, new GameModePanelContext { Mode = GameModePanelMode.Level, SceneName = ownLevel, ReadOnly = !own && !editShared, Scene = scene });
 
                     if (!own)
                     {
@@ -238,7 +243,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 case GameModeSource.ProjectDefault:
                     Header_Internal(gameMode, "project default");
 
-                    Draw(gameMode, new GameModePanelContext { Mode = GameModePanelMode.Level, ReadOnly = true });
+                    Draw(gameMode, new GameModePanelContext { Mode = GameModePanelMode.Level, ReadOnly = true, Scene = scene });
 
                     OverrideButton_Internal(scene, gameMode);
 
@@ -429,18 +434,41 @@ namespace ModernWestern.UEArchitecture.EditorTools
             }
         }
 
-        private static void PawnNote_Internal(SerializedObject serialized)
+        private static void PawnNote_Internal(SerializedObject serialized, GameModePanelContext context)
         {
             var pawn = serialized.FindProperty("defaultPawn");
 
-            if (pawn == null || pawn.hasMultipleDifferentValues || pawn.objectReferenceValue != null || serialized.isEditingMultipleObjects)
+            if (pawn == null || pawn.hasMultipleDifferentValues || serialized.isEditingMultipleObjects)
             {
                 return;
             }
 
-            var note = GameModeInfo.TryPlacedPawn(serialized, out var field, out var placed)
+            // A Pawn placed for Player 1 (Auto Possess Player) wins over the Default Pawn, as the runtime does.
+            var level = LevelOf_Internal(serialized.targetObject, context);
+
+            var report = level.IsValid() && level.isLoaded ? ProblemProviders.ForLevel(level) : null;
+
+            var autoPossessed = report?.PlacedPawn;
+
+            string note;
+
+            if (autoPossessed != null)
+            {
+                note = (report.PlacedPawnWaits
+                            ? $"The placed Pawn \"{autoPossessed.gameObject.name}\" waits for {GameModeInfo.PlayerLabel(0)} to join (it starts with no players: your code calls AddPlayer)"
+                            : $"{GameModeInfo.PlayerLabel(0)} possesses the placed Pawn \"{autoPossessed.gameObject.name}\"") +
+                       (pawn.objectReferenceValue != null ? "; the Default Pawn is for players without one, and for respawns." : ".");
+            }
+            else if (pawn.objectReferenceValue != null)
+            {
+                return;
+            }
+            else
+            {
+                note = GameModeInfo.TryPlacedPawn(serialized, out var field, out var placed)
                            ? $"Possesses the placed Pawn \"{placed.name}\" from code (field {field})."
                            : "Empty: players start without a Pawn.";
+            }
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -448,6 +476,20 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 EditorGUILayout.LabelField(note, UEArchitectureStyles.MutedLabel);
             }
+        }
+
+        /// <summary>
+        /// The level a panel speaks for: the scene of a GameMode placed in it, else the level of the World Settings panel.
+        /// </summary>
+        private static Scene LevelOf_Internal(Object gameMode, GameModePanelContext context)
+        {
+            if (gameMode is Component component && !EditorUtility.IsPersistent(component) && component.gameObject.scene.IsValid() &&
+                !EditorSceneManager.IsPreviewScene(component.gameObject.scene))
+            {
+                return component.gameObject.scene;
+            }
+
+            return context != null ? context.Scene : default;
         }
 
         private static void StateRow_Internal(string label, Type type, Type baseType, Object gameMode)

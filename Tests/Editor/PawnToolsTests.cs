@@ -249,6 +249,129 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
             StringAssert.Contains("plain AIController", aiText);
         }
 
+        [Test]
+        public void AutoPossessPlayer_ThePlayerPossessesThePlacedPawn_InTheToolsToo()
+        {
+            var hero = _kit.Prefab("DefaultHero", typeof(TestPawn));
+
+            var gameMode = _kit.Prefab("AutoPossessGameMode", typeof(TestGameMode));
+
+            UEArchitectureActions.Assign(gameMode.GetComponent<GameMode>(), "defaultPawn", hero);
+
+            var level = _kit.CreateLevel("AutoPossess");
+
+            UEArchitectureActions.UseGameModeInLevel(gameMode, level);
+
+            var placed = new GameObject("Player Character").AddComponent<TestPawn>();
+
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(placed.gameObject, level);
+
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(level);
+
+            ProblemProviders.Invalidate();
+
+            Assert.IsNull(ProblemProviders.ForLevel(level).PlacedPawn, "Off by default.");
+
+            var first = UEArchitectureActions.SetAutoPossessPlayer(placed, 0);
+
+            Assert.IsTrue(first.Ok, string.Join("\n", first.Problems));
+
+            Assert.AreEqual(0, placed.AutoPossessPlayer);
+
+            CollectionAssert.IsEmpty(UEArchitectureActions.SetAutoPossessPlayer(placed, 0).Changed, "Already set.");
+
+            Assert.IsFalse(UEArchitectureActions.SetAutoPossessPlayer(placed, 99).Ok, "Players 1 to 8.");
+
+            ProblemProviders.Invalidate();
+
+            var report = ProblemProviders.ForLevel(level);
+
+            Assert.AreSame(placed, report.PlacedPawn, "The overlay and the GameMode panel name it.");
+
+            Assert.AreEqual(1, report.PlayersWithPlacedPawns);
+
+            Assert.IsFalse(report.Problems.Any(problem => problem.FixId == "add-player-starts"), "Player 1 needs no Player Start: it possesses the placed Pawn.");
+
+            Assert.AreEqual(PawnControl.Player, PawnEditor.ControlledBy(placed, out var text));
+
+            StringAssert.Contains("Player 1", text);
+
+            var second = new GameObject("Second Character").AddComponent<TestPawn>();
+
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(second.gameObject, level);
+
+            UEArchitectureActions.SetAutoPossessPlayer(second, 0);
+
+            ProblemProviders.Invalidate();
+
+            var duplicate = ProblemProviders.For(second).FirstOrDefault(problem => problem.FixId == "clear-auto-possess-player");
+
+            Assert.IsNotNull(duplicate, "Two placed Pawns for Player 1: the second one is reported.");
+
+            Assert.AreEqual(PawnControl.Nobody, PawnEditor.ControlledBy(second, out _));
+
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(level);
+
+            Twice_Internal("set-auto-possess-player", "target=" + level.path + "#Second Character", "player=2");
+
+            Assert.AreEqual(1, second.AutoPossessPlayer, "player=2 is Player 2.");
+
+            Twice_Internal("set-auto-possess-player", "target=" + level.path + "#Second Character", "player=none");
+
+            Assert.AreEqual(-1, second.AutoPossessPlayer);
+
+            Assert.IsFalse(UEArchitectureCli.Execute(Parse_Internal("set-auto-possess-player", "target=" + level.path + "#Second Character", "player=0")).Ok, "Players count from 1.");
+        }
+
+        [Test]
+        public void AutoPossessPlayer_TheToolsSayWhatTheRuntimeDoes_WithNoPlayersAtStartAndWithAutoPossessAI()
+        {
+            var gameMode = _kit.Prefab("NoPlayersGameMode", typeof(TestGameMode));
+
+            var assigned = UEArchitectureActions.Assign(gameMode.GetComponent<GameMode>(), "playersAtStart", 0);
+
+            Assert.IsTrue(assigned.Ok, string.Join("\n", assigned.Problems));
+
+            Assert.AreEqual(0, gameMode.GetComponent<GameMode>().PlayersAtStart);
+
+            var level = _kit.CreateLevel("NoPlayersAtStart");
+
+            UEArchitectureActions.UseGameModeInLevel(gameMode, level);
+
+            var placed = new GameObject("Waiting Character").AddComponent<TestPawn>();
+
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(placed.gameObject, level);
+
+            placed.AutoPossessPlayer = 0;
+
+            placed.AutoPossessAI = AutoPossessAI.PlacedInWorld;
+
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(level);
+
+            ProblemProviders.Invalidate();
+
+            var report = ProblemProviders.ForLevel(level);
+
+            Assert.AreSame(placed, report.PlacedPawn);
+
+            Assert.IsTrue(report.PlacedPawnWaits, "0 players at start is 0, not 1: Player 1 joins only with AddPlayer.");
+
+            Assert.AreEqual(0, report.PlayersWithPlacedPawns);
+
+            var problems = ProblemProviders.For(placed).ToList();
+
+            Assert.IsTrue(problems.Any(problem => problem.Message.Contains("Waits for Player 1 to join") && problem.Message.Contains("no players")),
+                          string.Join("\n", problems.Select(problem => problem.Message)));
+
+            Assert.IsFalse(problems.Any(problem => problem.FixId == "create-ai-controller"), "The runtime never gives it to its AI: no AI Controller warning.");
+
+            Assert.IsTrue(problems.Any(problem => problem.Message.Contains("Auto Possess AI does nothing here")));
+
+            Assert.AreEqual(PawnControl.Player, PawnEditor.ControlledBy(placed, out var text), "The player wins over Auto Possess AI.");
+
+            StringAssert.Contains("waits for AddPlayer", text);
+        }
+
         private static ActionResult Twice_Internal(string verb, params string[] pairs)
         {
             var first = UEArchitectureCli.Execute(Parse_Internal(verb, pairs));

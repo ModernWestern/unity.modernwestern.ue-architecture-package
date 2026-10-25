@@ -285,6 +285,39 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
         }
 
         [Test]
+        public void TheSetOfALevel_UsesThePawnPlacedForPlayer1()
+        {
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
+
+            try
+            {
+                var gameMode = new GameObject("Placed Mode").AddComponent<TestGameMode>();
+
+                var pawn = new GameObject("Player Character").AddComponent<TestPawn>();
+
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameMode.gameObject, scene);
+
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(pawn.gameObject, scene);
+
+                Assert.IsNull(FrameworkTypeSet.ForScene(scene).Pawn, "No Default Pawn and nothing placed for a player: no Pawn.");
+
+                pawn.AutoPossessPlayer = 0;
+
+                var set = FrameworkTypeSet.ForScene(scene);
+
+                Assert.AreEqual(typeof(TestPawn), set.Pawn, "Player 1 possesses the placed Pawn.");
+
+                StringAssert.Contains("Player 1", set.PawnLabel);
+
+                Assert.AreEqual(FrameworkSlot.Pawn, BindingPreview.Predict(typeof(TestPawn), set).Slot);
+            }
+            finally
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
+            }
+        }
+
+        [Test]
         public void TheCatalogProvider_ListsTheFrameworkClasses()
         {
             var withTests = new FrameworkViewModelCatalogProvider(true).ViewModels().ToList();

@@ -35,6 +35,11 @@ namespace ModernWestern.UEArchitecture
     [AddComponentMenu("UE Architecture/Pawn")]
     public partial class Pawn : MonoBehaviour
     {
+        [Header("Player")]
+        [SerializeField, Min(-1), Tooltip("Placed in a level: the player (0 = Player 1) that possesses this Pawn when it first joins, instead of getting the " +
+                                          "GameMode's Default Pawn (once per level; Auto Possess AI then waits for the player). -1 = no player.")]
+        private int autoPossessPlayer = -1;
+
         [Header("AI")]
         [SerializeField, Tooltip("When this Pawn creates its AI controller by itself.")]
         private AutoPossessAI autoPossessAI = AutoPossessAI.Disabled;
@@ -62,6 +67,18 @@ namespace ModernWestern.UEArchitecture
         {
             get => autoPossessAI;
             set => autoPossessAI = value;
+        }
+
+        /// <summary>
+        /// For a Pawn placed in a level: the player (0 = Player 1) that possesses it when it joins, instead of getting the
+        /// GameMode's Default Pawn, like Unreal's Auto Possess Player. -1 (the default) = no player. Read once, as the level
+        /// begins, and used once: when that player first needs a Pawn (later respawns get the Default Pawn). A placed Pawn
+        /// with a player set never gets its AI controller as the level begins: it waits for its player.
+        /// </summary>
+        public int AutoPossessPlayer
+        {
+            get => autoPossessPlayer;
+            set => autoPossessPlayer = value;
         }
 
         public T GetController<T>() where T : Controller

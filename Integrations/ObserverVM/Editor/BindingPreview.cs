@@ -130,8 +130,9 @@ namespace ModernWestern.UEArchitecture.EditorTools
         }
 
         /// <summary>
-        /// The set of a loaded level: its GameMode as the runtime picks it (placed, World Settings, project default). A
-        /// GameMode placed in the level that points to a Pawn placed in it (possessed by its code) gives that Pawn.
+        /// The set of a loaded level: its GameMode as the runtime picks it (placed, World Settings, project default). A Pawn
+        /// placed for Player 1 (Auto Possess Player) is the player's Pawn; else a GameMode placed in the level that points to
+        /// a Pawn placed in it (possessed by its code) gives that Pawn.
         /// </summary>
         public static FrameworkTypeSet ForScene(Scene scene)
         {
@@ -140,6 +141,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
             var gameMode = scene.IsValid() && scene.isLoaded ? GameModeInfo.Effective(scene, out source) : null;
 
             var set = ForGameMode(gameMode, gameMode != null ? GameModeInfo.Describe(source) : null);
+
+            // A Pawn placed for Player 1 (Auto Possess Player) wins over the Default Pawn, as the runtime does.
+            var autoPossessed = gameMode != null ? GameModeInfo.PlacedPlayerPawn(scene, 0) : null;
+
+            if (autoPossessed != null)
+            {
+                set.Pawn = autoPossessed.GetType();
+
+                set.PawnLabel = $"{autoPossessed.gameObject.name} (placed in this scene, possessed by {GameModeInfo.PlayerLabel(0)})";
+
+                return set;
+            }
 
             if (gameMode != null && set.Pawn == null && !EditorUtility.IsPersistent(gameMode) && GameModeInfo.TryPlacedPawn(new SerializedObject(gameMode), out _, out var placed))
             {
@@ -978,7 +991,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 binding.Text = $"{who} binds it once the player has a Pawn, but {(string.IsNullOrEmpty(binding.Set.GameModeName) ? "the GameMode" : binding.Set.GameModeName)} has no Default Pawn of this class";
 
-                binding.Tooltip = "Give the GameMode a Default Pawn, or possess one from code.";
+                binding.Tooltip = "Give the GameMode a Default Pawn, set Auto Possess Player on a Pawn placed in the level, or possess one from code.";
 
                 return;
             }

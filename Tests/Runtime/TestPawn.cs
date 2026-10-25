@@ -4,6 +4,11 @@ namespace ModernWestern.UEArchitecture.Tests
     {
         public int Possessions;
 
-        protected override void OnPossessed(Controller controller) => Possessions++;
+        protected override void OnPossessed(Controller controller)
+        {
+            Possessions++;
+
+            TestGate.Log.Add($"{name}.Possessed");
+        }
     }
 }
