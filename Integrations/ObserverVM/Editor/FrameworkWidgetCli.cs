@@ -252,7 +252,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
         {
             var trimmed = (name ?? string.Empty).Trim();
 
-            var matches = AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic).SelectMany(Types_Internal)
+            var matches = EditorCompat.LoadedAssemblies().Where(assembly => !assembly.IsDynamic).SelectMany(Types_Internal)
                                    .Where(type => type.IsClass && (type.FullName == trimmed || type.Name == trimmed)).Distinct().ToList();
 
             var exact = matches.Where(type => type.FullName == trimmed).ToList();

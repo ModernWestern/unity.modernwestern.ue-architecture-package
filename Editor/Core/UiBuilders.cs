@@ -216,7 +216,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 return type;
             }
 
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var assembly in EditorCompat.LoadedAssemblies())
             {
                 type = assembly.GetType(fullName, false);
 

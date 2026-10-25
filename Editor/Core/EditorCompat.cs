@@ -13,6 +13,19 @@ namespace ModernWestern.UEArchitecture.EditorTools
     internal static class EditorCompat
     {
         /// <summary>
+        /// The assemblies loaded now. From Unity 6000.4, Unity can unload assemblies that AppDomain.GetAssemblies() still lists,
+        /// and its analyzer warns about that call, so it asks Unity for the loaded ones.
+        /// </summary>
+        public static System.Collections.Generic.IReadOnlyList<System.Reflection.Assembly> LoadedAssemblies()
+        {
+#if UNITY_6000_4_OR_NEWER
+            return UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies();
+#else
+            return System.AppDomain.CurrentDomain.GetAssemblies();
+#endif
+        }
+
+        /// <summary>
         /// Starts the Project window's "type a name" field for a new asset (or creates it at once with the default name
         /// when no Project window is open), then calls <paramref name="action"/> with the chosen path.
         /// </summary>
@@ -204,7 +217,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 return type;
             }
 
-            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var assembly in LoadedAssemblies())
             {
                 type = assembly.GetType(fullName, false);
 
