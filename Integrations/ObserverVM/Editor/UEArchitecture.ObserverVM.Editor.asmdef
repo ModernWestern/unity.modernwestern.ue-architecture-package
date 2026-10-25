@@ -25,6 +25,11 @@
             "name": "com.modernwestern.observer-vm",
             "expression": "2.2.0",
             "define": "UEA_OBSERVERVM_EDITOR"
+        },
+        {
+            "name": "com.modernwestern.observer-vm",
+            "expression": "2.4.0",
+            "define": "UEA_OBSERVERVM_INFO"
         }
     ],
     "noEngineReferences": false

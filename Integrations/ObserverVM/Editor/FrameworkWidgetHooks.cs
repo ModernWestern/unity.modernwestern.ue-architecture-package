@@ -47,7 +47,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// <summary>
     /// Plugs the framework into ObserverVM's editor (compiled only with ObserverVM 2.2 or newer): the widget inspector's
     /// "Bound by" row and a Framework Binder section, the ViewModel pickers' "Framework (UE Architecture)" group,
-    /// validation rules for the Validation window and the Play and build checks, the Framework Binder that widgets made
+    /// validation rules for the Validation window and the Play and build checks (with ObserverVM 2.4 or newer, a note on
+    /// prefabs whose binding depends on where they are placed), the Framework Binder that widgets made
     /// outside a HUD get, the HUD inspector's "Widgets in this HUD", the Game Mode Kit's HUD preset, the Level overlay
     /// and "-uea validate" problems, and the command line verbs.
     /// </summary>
@@ -92,6 +93,9 @@ namespace ModernWestern.UEArchitecture.EditorTools
             WidgetCreationHooks.Created += OnWidgetCreated_Internal;
 
             ProblemProviders.RegisterLevel(Level_Internal);
+#if UEA_OBSERVERVM_INFO
+            ProblemProviders.Register(typeof(Widget), Placement_Internal);
+#endif
 
             HUDEditor.RegisterSection(HudWidgetsSection.Draw);
 
@@ -173,8 +177,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
         /// <summary>
         /// ObserverVM's validation: framework widgets nothing binds (with "Add Framework Binder"), framework widgets of a
-        /// level without a GameMode, and HUD widgets nothing matches. Prefabs outside a HUD depend on the level and are not
-        /// reported.
+        /// level without a GameMode, and HUD widgets nothing matches. Prefabs outside a HUD depend on the level: with
+        /// ObserverVM 2.4 or newer they get a note (Info, never a problem), before that they are not reported.
         /// </summary>
         internal static IEnumerable<BindWidgetIssue> Rule_Internal(Widget widget, string location)
         {
@@ -233,6 +237,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                     break;
                 }
+#if UEA_OBSERVERVM_INFO
+                case BindingSource.DependsOnPlacement:
+                {
+                    yield return new BindWidgetIssue(widget, BindWidgetIssueSeverity.Info, PlacementNote_Internal(widget, location), location);
+
+                    break;
+                }
+#endif
             }
         }
 
@@ -285,6 +297,51 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 report.Problems.Add(new Problem(ProblemSeverity.Info, $"{LevelName_Internal(scene)} has framework widgets but no GameMode: they only get subsystems and the Game Instance."));
             }
         }
+
+#if UEA_OBSERVERVM_INFO
+        /// <summary>
+        /// The Level overlay in Prefab Mode: a note (never a problem) on the framework widgets of a prefab outside any HUD,
+        /// whose binding depends on where the prefab is placed.
+        /// </summary>
+        internal static void Placement_Internal(Component component, List<Problem> problems)
+        {
+            if (component is not Widget widget || !BindingPreview.IsFrameworkViewModel(widget.ViewModelType))
+            {
+                return;
+            }
+
+            // Only a prefab file or Prefab Mode can depend on placement: objects of a level are left alone at once.
+            if (!EditorUtility.IsPersistent(widget) && PrefabStageUtility.GetPrefabStage(widget.gameObject) == null)
+            {
+                return;
+            }
+
+            if (BindingPreview.Of(widget).Source == BindingSource.DependsOnPlacement)
+            {
+                problems.Add(new Problem(ProblemSeverity.Info, PlacementNote_Internal(widget, null), widget));
+            }
+        }
+
+        /// <summary>
+        /// "Score in ScoreWidget.prefab: what binds it depends on where you place it (inside a HUD, or with a Framework
+        /// Binder)."
+        /// </summary>
+        internal static string PlacementNote_Internal(Widget widget, string location)
+        {
+            var path = location;
+
+            if (string.IsNullOrEmpty(path) || !path.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase))
+            {
+                var stage = PrefabStageUtility.GetPrefabStage(widget.gameObject);
+
+                path = EditorUtility.IsPersistent(widget) ? AssetDatabase.GetAssetPath(widget) : stage != null ? stage.assetPath : null;
+            }
+
+            var where = string.IsNullOrEmpty(path) ? string.Empty : $" in {Path.GetFileName(path)}";
+
+            return $"{widget.name}{where}: what binds it depends on where you place it (inside a HUD, or with a Framework Binder).";
+        }
+#endif
 
         /// <summary>
         /// Widgets ObserverVM makes for a framework object outside a HUD get a Framework Binder (Project Settings > UE

@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using ModernWestern.UI.ObserverVM;
@@ -542,6 +543,88 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
             var validated = UEArchitectureActions.Validate("open", true);
 
             Assert.IsFalse(validated.Problems.Any(line => line.Contains("Framework Binder")), string.Join("\n", validated.Problems));
+        }
+
+        [Test]
+        public void APrefabOutsideAHud_DependsOnWhereItIsPlaced()
+        {
+            var prefab = Prefab_Internal("LooseScore", typeof(RectTransform), typeof(ScoreWidget));
+
+            var path = AssetDatabase.GetAssetPath(prefab);
+
+            var widget = prefab.GetComponent<ScoreWidget>();
+
+            var hudPrefab = Prefab_Internal("NoteHUD", typeof(RectTransform), typeof(Canvas), typeof(TestHUD));
+
+            AddChild_Internal(hudPrefab, "Score", typeof(ScoreWidget));
+
+            var inHud = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GetAssetPath(hudPrefab)).transform.Find("Score").GetComponent<ScoreWidget>();
+
+            var level = Level_Internal("Placed");
+
+            var loose = Child_Internal<ScoreWidget>(Root_Internal(level, "Canvas"), "Loose");
+
+            Refresh_Internal();
+
+            Assert.AreEqual(BindingSource.DependsOnPlacement, BindingPreview.Of(widget).Source);
+
+            var issues = FrameworkWidgetHooks.Rule_Internal(widget, path).ToList();
+
+            Assert.AreEqual(BindingSource.HUD, BindingPreview.Of(inHud).Source);
+
+            Assert.IsFalse(FrameworkWidgetHooks.Rule_Internal(inHud, AssetDatabase.GetAssetPath(hudPrefab)).Any(issue => issue.Problem.Contains("depends on where you place it")), "Inside a HUD the HUD binds it: no note.");
+
+            Assert.AreEqual(BindWidgetIssueSeverity.Warning, FrameworkWidgetHooks.Rule_Internal(loose, _levelPath).Single().Severity, "A widget of a level that nothing binds stays a warning.");
+
+#if UEA_OBSERVERVM_INFO
+            Assert.AreEqual(1, issues.Count);
+
+            Assert.AreEqual(BindWidgetIssueSeverity.Info, issues[0].Severity);
+
+            Assert.AreEqual("LooseScore in LooseScore.prefab: what binds it depends on where you place it (inside a HUD, or with a Framework Binder).", issues[0].Problem);
+
+            Assert.IsNull(issues[0].Fix, "Nothing to fix: where it is placed decides.");
+
+            // ObserverVM lists it as a note: never an error or a warning, never a problem of "-ovm validate".
+            var errorsOnly = new List<BindWidgetIssue>();
+
+            BindWidgetValidator.ValidateHierarchy(prefab, path, errorsOnly);
+
+            Assert.IsEmpty(errorsOnly);
+
+            var all = new List<BindWidgetIssue>();
+
+            BindWidgetValidator.ValidateHierarchy(prefab, path, all, true);
+
+            Assert.AreEqual(1, BindWidgetValidator.Count(all, BindWidgetIssueSeverity.Info));
+
+            Assert.AreEqual(0, BindWidgetValidator.CountErrors(all) + BindWidgetValidator.Count(all, BindWidgetIssueSeverity.Warning));
+
+            var check = ObserverVMCli.Execute(new[] { "-ovm", "validate", $"target={path}" }, out var code);
+
+            Assert.AreEqual(ObserverVMCli.ExitOk, code, check.ToJson());
+
+            Assert.IsTrue(check.Notes.Any(note => note.StartsWith("Note: ", StringComparison.Ordinal) && note.Contains("depends on where you place it")), check.ToJson());
+
+            // The Level overlay in Prefab Mode: an info note, never a problem; widgets of a level get none.
+            var problems = ProblemProviders.For(widget);
+
+            Assert.AreEqual(1, problems.Count);
+
+            Assert.AreEqual(ProblemSeverity.Info, problems[0].Severity);
+
+            Assert.AreEqual(issues[0].Problem, problems[0].Message);
+
+            CollectionAssert.IsEmpty(ProblemProviders.For(inHud));
+
+            CollectionAssert.IsEmpty(ProblemProviders.For(loose));
+
+            Assert.IsFalse(UEArchitectureActions.Validate("open", true).Problems.Any(line => line.Contains("depends on where you place it")));
+#else
+            Assert.IsEmpty(issues, "Before ObserverVM 2.4 (no Info level) a prefab outside a HUD is not reported.");
+
+            CollectionAssert.IsEmpty(ProblemProviders.For(widget));
+#endif
         }
 
         [Test]
