@@ -85,6 +85,9 @@ namespace ModernWestern.UEArchitecture.EditorTools
         [SerializeField, Tooltip("With ObserverVM 2.2 or newer: a widget that ObserverVM's tools make for a framework object (a PlayerState, the GameState, a subsystem...) outside a HUD gets a Framework Binder by itself.")]
         private bool autoAddFrameworkBinder = true;
 
+        [SerializeField, Tooltip("Where \"Generate C# constants\" writes the tag constants (Tags.Status.Burning). Empty = GameplayTags.g.cs in the scripts folder.")]
+        private string tagConstantsPath = string.Empty;
+
         /// <summary>
         /// The current conventions, as a plain value.
         /// </summary>
@@ -128,6 +131,20 @@ namespace ModernWestern.UEArchitecture.EditorTools
         {
             get => autoAddFrameworkBinder;
             internal set => autoAddFrameworkBinder = value;
+        }
+
+        /// <summary>
+        /// The file "Generate C# constants" writes: the one set here, or GameplayTags.g.cs in the scripts folder.
+        /// </summary>
+        public string TagConstantsPath
+        {
+            get
+            {
+                var path = (tagConstantsPath ?? string.Empty).Trim().Replace('\\', '/');
+
+                return path.Length > 0 ? path : $"{GeneratorNaming.CleanFolder(Conventions.ScriptsFolder)}/{GameplayTagConstants.DefaultFileName}";
+            }
+            internal set => tagConstantsPath = value ?? string.Empty;
         }
 
         /// <summary>
@@ -245,6 +262,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 FolderField_Internal("scriptsFolder", "Scripts Folder");
 
                 EditorGUILayout.PropertyField(_serialized.FindProperty("splitStateFiles"), new GUIContent("Separate State Files", _serialized.FindProperty("splitStateFiles").tooltip));
+
+                EditorGUILayout.PropertyField(_serialized.FindProperty("tagConstantsPath"), new GUIContent("Tag Constants File", _serialized.FindProperty("tagConstantsPath").tooltip));
 
                 UEArchitectureStyles.Section("Prefabs");
 

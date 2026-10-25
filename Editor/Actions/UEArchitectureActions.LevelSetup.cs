@@ -257,6 +257,13 @@ namespace ModernWestern.UEArchitecture.EditorTools
         {
             var result = new ActionResult("add-to-build");
 
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                result.AddProblem("Leave Play mode first: Build Settings are changed in Edit mode.");
+
+                return result;
+            }
+
             var clean = GeneratorNaming.CleanFolder(scenePath);
 
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(clean) == null)
