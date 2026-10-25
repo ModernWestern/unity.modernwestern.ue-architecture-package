@@ -12,7 +12,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
         private const string WorkflowHelp = "create-class class=<Name> (parent=<Class> | message=true) [folder=Assets/...] [prefab=true] [tickable=true tick-group=<Group> tick-order=<n> unscaled=true] " +
                                             "[game-state=<Class>] [player-state=<Class>] [split=true|false] [assign-to=<address> property=<field>] [fix-references=true] | " +
                                             "new-gamemode-kit name=<Name> [use=default|level|none] [scene=<path>] [folder=Assets/...] " +
-                                            "[gamemode|game-state|player-state|player-controller|pawn|hud|ai-controller=new|base|none|<Class>] [pawn-preset=empty|capsule|capsule-nav] [hud-canvas=true|false] " +
+                                            "[gamemode|game-state|player-state|player-controller|pawn|hud|ai-controller=new|base|none|<Class>] [pawn-preset=empty|capsule|capsule-nav] [hud-canvas=true|false] [hud-preset=<id>] " +
                                             "[starts=true|false] [split=true|false] [fix-references=true] | " +
                                             "create-level path=<Assets/...unity> [gamemode=<prefab>] [build=true|false] | set-up-level scene=<path> [gamemode=<prefab>] | " +
                                             "add-player-starts scene=<path> [count=<n>] | create-hud-prefab [class=<Class>] [path=Assets/...prefab] | " +
@@ -234,6 +234,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 aiController = Choice_Internal(arguments, "ai-controller", KitChoiceMode.None, result),
                 pawnPreset = UEArchitectureEditorSettings.instance.DefaultPawnPreset,
                 hudCanvas = arguments.Get("hud-canvas") == null || arguments.Flag("hud-canvas"),
+                hudPreset = arguments.Get("hud-preset", string.Empty),
                 addPlayerStarts = arguments.Get("starts") == null || arguments.Flag("starts"),
                 stateFiles = arguments.Get("split") == null ? StateFiles.AsInSettings : arguments.Flag("split") ? StateFiles.OwnFiles : StateFiles.SameFile
             };
@@ -322,6 +323,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 new KeyValuePair<string, string>("ai-controller", Choice(request.aiController, KitChoiceMode.None)),
                 new KeyValuePair<string, string>("pawn-preset", request.pawnPreset == PawnPreset.Empty ? "empty" : request.pawnPreset == PawnPreset.Capsule ? "capsule" : "capsule-nav"),
                 new KeyValuePair<string, string>("hud-canvas", request.hudCanvas ? string.Empty : "false"),
+                new KeyValuePair<string, string>("hud-preset", request.hudPreset ?? string.Empty),
                 new KeyValuePair<string, string>("starts", request.addPlayerStarts ? string.Empty : "false"),
                 new KeyValuePair<string, string>("split", request.stateFiles == StateFiles.AsInSettings ? string.Empty : request.stateFiles == StateFiles.OwnFiles ? "true" : "false"),
                 new KeyValuePair<string, string>("fix-references", fixReferences ? "true" : string.Empty)

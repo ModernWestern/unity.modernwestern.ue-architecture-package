@@ -123,6 +123,12 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// </summary>
         public bool hudCanvas = true;
 
+        /// <summary>
+        /// What else goes in the HUD prefab, by preset id (empty: nothing). With ObserverVM 2.2 or newer,
+        /// "framework-widgets" adds a widget for the GameState and one for the PlayerState when they have Observables.
+        /// </summary>
+        public string hudPreset = string.Empty;
+
         public KitDestination useAs = KitDestination.Nothing;
 
         /// <summary>

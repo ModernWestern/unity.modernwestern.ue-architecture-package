@@ -431,6 +431,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 var steps = store.Load();
 
+                var known = new HashSet<string>(steps.Select(step => step.id), StringComparer.Ordinal);
+
                 if (steps.Count == 0)
                 {
                     result.Message = "Nothing pending.";
@@ -523,6 +525,9 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 
                 steps.RemoveAll(step => step.status == PendingStatus.Done);
+
+                // A handler may queue a step of its own (a widget script written once the HUD exists): keep it.
+                steps.AddRange(store.Load().Where(step => !known.Contains(step.id)));
 
                 store.Save(steps);
 

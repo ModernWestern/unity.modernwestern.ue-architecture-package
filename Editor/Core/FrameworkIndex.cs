@@ -208,18 +208,28 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             if (_gameModesUsing == null)
             {
-                _gameModesUsing = new Dictionary<GameObject, List<GameMode>>();
+                // The prefab scan first: rebuilding the prefab index clears this cache.
+                var gameModePrefabs = PrefabsWith(typeof(GameMode));
 
-                foreach (var gameModePrefab in PrefabsWith(typeof(GameMode)))
+                var usage = new Dictionary<GameObject, List<GameMode>>();
+
+                foreach (var gameModePrefab in gameModePrefabs)
                 {
-                    var gameMode = gameModePrefab.GetComponent<GameMode>();
+                    var gameMode = gameModePrefab != null ? gameModePrefab.GetComponent<GameMode>() : null;
 
-                    AddUsage_Internal(gameMode.PlayerControllerPrefab, gameMode);
+                    if (gameMode == null)
+                    {
+                        continue;
+                    }
 
-                    AddUsage_Internal(gameMode.DefaultPawnPrefab, gameMode);
+                    AddUsage_Internal(usage, gameMode.PlayerControllerPrefab, gameMode);
 
-                    AddUsage_Internal(gameMode.HUDPrefab, gameMode);
+                    AddUsage_Internal(usage, gameMode.DefaultPawnPrefab, gameMode);
+
+                    AddUsage_Internal(usage, gameMode.HUDPrefab, gameMode);
                 }
+
+                _gameModesUsing = usage;
             }
 
             return _gameModesUsing.TryGetValue(prefab, out var users) ? users : (IReadOnlyList<GameMode>)Array.Empty<GameMode>();
@@ -585,18 +595,18 @@ namespace ModernWestern.UEArchitecture.EditorTools
             return gameMode;
         }
 
-        private static void AddUsage_Internal(Component prefab, GameMode user)
+        private static void AddUsage_Internal(Dictionary<GameObject, List<GameMode>> usage, Component prefab, GameMode user)
         {
             if (prefab == null)
             {
                 return;
             }
 
-            if (!_gameModesUsing.TryGetValue(prefab.gameObject, out var users))
+            if (!usage.TryGetValue(prefab.gameObject, out var users))
             {
                 users = new List<GameMode>();
 
-                _gameModesUsing[prefab.gameObject] = users;
+                usage[prefab.gameObject] = users;
             }
 
             if (!users.Contains(user))

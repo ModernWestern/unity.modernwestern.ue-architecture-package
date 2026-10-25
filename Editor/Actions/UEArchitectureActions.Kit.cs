@@ -272,6 +272,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             op.PingWhenDone(gameMode.gameObject);
 
+            ApplyHudPreset_Internal(op, plan, request, prefabs, gameMode);
+
             if (request.useAs == KitDestination.ProjectDefault)
             {
                 var settings = EnsureSettings_Internal(op);
@@ -325,6 +327,37 @@ namespace ModernWestern.UEArchitecture.EditorTools
             op.Result.Message = op.Result.Created.Count + op.Result.Changed.Count == 0
                                     ? $"The {plan.BaseName} set is complete: nothing was missing."
                                     : $"The {plan.BaseName} set is wired: {made} new prefab(s), {op.Result.Changed.Count} change(s).";
+        }
+
+        /// <summary>
+        /// The kit's HUD preset (<see cref="KitRequest.hudPreset"/>) on the HUD prefab of the set.
+        /// </summary>
+        private static void ApplyHudPreset_Internal(ScaffoldOp op, KitPlan plan, KitRequest request, System.Collections.Generic.Dictionary<KitSlot, GameObject> prefabs, GameMode gameMode)
+        {
+            if (string.IsNullOrEmpty(request.hudPreset))
+            {
+                return;
+            }
+
+            var preset = HudPresets.Find(request.hudPreset);
+
+            if (preset == null)
+            {
+                op.Result.AddNote($"The HUD preset \"{request.hudPreset}\" is not available (it needs ObserverVM 2.2 or newer): the HUD was left as it is.");
+
+                return;
+            }
+
+            if (plan.HUD == null || !prefabs.TryGetValue(plan.HUD, out var hudPrefab) || hudPrefab == null)
+            {
+                op.Result.AddNote($"The set has no HUD, so \"{preset.Label}\" was skipped.");
+
+                return;
+            }
+
+            var gameModeType = gameMode.GetType();
+
+            preset.Apply(op, hudPrefab, GameModeInfo.GameStateType(gameModeType), GameModeInfo.PlayerStateType(gameModeType));
         }
 
         /// <summary>

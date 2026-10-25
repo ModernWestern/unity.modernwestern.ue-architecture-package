@@ -201,7 +201,7 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
         }
 
         [Test]
-        public void AutoPossessWithoutController_IsANote()
+        public void AutoPossessWithoutController_IsAWarningWithAFix()
         {
             var pawn = _kit.Prefab("Guard", typeof(TestPawn)).GetComponent<Pawn>();
 
@@ -209,11 +209,29 @@ namespace ModernWestern.UEArchitecture.EditorTools.Tests
 
             ProblemProviders.Invalidate();
 
+            var warning = ProblemProviders.For(pawn).Single();
+
+            Assert.AreEqual(ProblemSeverity.Warning, warning.Severity);
+
+            StringAssert.Contains("plain AIController", warning.Message);
+
+            Assert.AreEqual("create-ai-controller", warning.FixId);
+
+            Assert.IsTrue(warning.Fix().Ok);
+
+            ProblemProviders.Invalidate();
+
+            CollectionAssert.IsEmpty(ProblemProviders.For(pawn), "The AI Controller slot is filled.");
+
+            UEArchitectureActions.Assign(pawn, "autoPossessAI", "Disabled");
+
+            ProblemProviders.Invalidate();
+
             var note = ProblemProviders.For(pawn).Single();
 
-            Assert.AreEqual(ProblemSeverity.Info, note.Severity);
+            Assert.AreEqual(ProblemSeverity.Info, note.Severity, "A controller nobody uses is a note.");
 
-            StringAssert.Contains("plain AIController", note.Message);
+            Assert.AreEqual("turn-on-auto-possess", note.FixId);
         }
 
         [Test]

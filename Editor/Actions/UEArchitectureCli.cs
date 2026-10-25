@@ -54,9 +54,40 @@ namespace ModernWestern.UEArchitecture.EditorTools
                                     "fill-scene-references target=<scene address> [component=<Class>] [all=true] | " +
                                     "new-script class=<Name> parent=<Class> [folder=Assets/...] [prefab=true] [assign-to=<address> property=<field> [component=<Class>]] | " +
                                     "remove-files paths=<path;path;...> (moves files a run created to the trash) | " +
-                                    WorkflowHelp +
+                                    WorkflowHelp + PawnHelp +
                                     "Without -quit a run that waits for a compile exits by itself (timeout=<seconds>, 600 by default). " +
                                     "Exit codes: 0 ok, 1 problems, 2 still pending.";
+
+        private static readonly List<(string Text, Func<CliArguments, CliSession, ActionResult> Dispatch)> _extraVerbs = new();
+
+        /// <summary>
+        /// Every verb, with the verbs other editor assemblies added (the ObserverVM integration).
+        /// </summary>
+        internal static string HelpText => _extraVerbs.Count == 0 ? Help : Help + " | " + string.Join(" | ", _extraVerbs.Select(extra => extra.Text));
+
+        /// <summary>
+        /// Adds verbs from another editor assembly: <paramref name="dispatch"/> returns the result of a verb it knows, or
+        /// null for any other verb. Registering the same help text again replaces the earlier registration (domain reloads).
+        /// </summary>
+        internal static void RegisterVerbs_Internal(string help, Func<CliArguments, CliSession, ActionResult> dispatch)
+        {
+            if (string.IsNullOrEmpty(help) || dispatch == null)
+            {
+                return;
+            }
+
+            _extraVerbs.RemoveAll(extra => extra.Text == help);
+
+            _extraVerbs.Add((help, dispatch));
+        }
+
+        /// <summary>
+        /// Removes verbs added with <see cref="RegisterVerbs_Internal"/>.
+        /// </summary>
+        internal static void UnregisterVerbs_Internal(string help)
+        {
+            _extraVerbs.RemoveAll(extra => extra.Text == help);
+        }
 
         /// <summary>
         /// The -executeMethod entry point.
@@ -205,7 +236,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     invalid.AddProblem(problem);
                 }
 
-                invalid.AddNote(Help);
+                invalid.AddNote(HelpText);
 
                 return invalid;
             }
@@ -227,7 +258,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             switch (arguments.Verb)
             {
                 case "help":
-                    var help = new ActionResult("help") { Message = Help };
+                    var help = new ActionResult("help") { Message = HelpText };
 
                     return help;
 
@@ -471,16 +502,26 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 
                 default:
-                    var workflow = DispatchWorkflow_Internal(arguments, session);
+                    var workflow = DispatchWorkflow_Internal(arguments, session) ?? DispatchPawn_Internal(arguments, session);
 
                     if (workflow != null)
                     {
                         return workflow;
                     }
 
+                    foreach (var (_, dispatch) in _extraVerbs)
+                    {
+                        var extra = dispatch(arguments, session);
+
+                        if (extra != null)
+                        {
+                            return extra;
+                        }
+                    }
+
                     var unknown = ActionResult.Fail(arguments.Verb, $"Unknown verb \"{arguments.Verb}\".");
 
-                    unknown.AddNote(Help);
+                    unknown.AddNote(HelpText);
 
                     return unknown;
             }
@@ -578,7 +619,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             }
         }
 
-        private static bool Require_Internal(CliArguments arguments, out ActionResult failed, params string[] keys)
+        internal static bool Require_Internal(CliArguments arguments, out ActionResult failed, params string[] keys)
         {
             var missing = keys.Where(key => string.IsNullOrEmpty(arguments.Get(key))).ToArray();
 
@@ -591,7 +632,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             failed = ActionResult.Fail(arguments.Verb, $"\"{arguments.Verb}\" needs {string.Join(", ", missing.Select(key => key + "=..."))}.");
 
-            failed.AddNote(Help);
+            failed.AddNote(HelpText);
 
             return false;
         }

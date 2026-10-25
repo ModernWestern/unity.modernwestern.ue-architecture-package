@@ -82,6 +82,9 @@ namespace ModernWestern.UEArchitecture.EditorTools
         [SerializeField, Tooltip("Pressing Play in a level without a GameMode: say it once in the Console, or say nothing.")]
         private PlayStartPolicy playStartCheck = PlayStartPolicy.Warn;
 
+        [SerializeField, Tooltip("With ObserverVM 2.2 or newer: a widget that ObserverVM's tools make for a framework object (a PlayerState, the GameState, a subsystem...) outside a HUD gets a Framework Binder by itself.")]
+        private bool autoAddFrameworkBinder = true;
+
         /// <summary>
         /// The current conventions, as a plain value.
         /// </summary>
@@ -119,6 +122,15 @@ namespace ModernWestern.UEArchitecture.EditorTools
         }
 
         /// <summary>
+        /// With ObserverVM: widgets ObserverVM's tools make for a framework object outside a HUD get a Framework Binder.
+        /// </summary>
+        public bool AutoAddFrameworkBinder
+        {
+            get => autoAddFrameworkBinder;
+            internal set => autoAddFrameworkBinder = value;
+        }
+
+        /// <summary>
         /// Writes the settings to ProjectSettings/UEArchitectureEditorSettings.asset (text, for version control).
         /// </summary>
         public void SaveSettings()
@@ -152,6 +164,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
             referenceResolution = new Vector2Int(1920, 1080);
 
             playStartCheck = PlayStartPolicy.Warn;
+
+            autoAddFrameworkBinder = true;
         }
 
         /// <summary>
@@ -201,7 +215,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
             {
                 label = "Editor",
                 guiHandler = Draw_Internal,
-                keywords = new[] { "Prefab", "Folder", "Scripts", "Naming", "Override", "Modes", "Generated", "Pawn", "Canvas", "Resolution", "Play" }
+                keywords = new[] { "Prefab", "Folder", "Scripts", "Naming", "Override", "Modes", "Generated", "Pawn", "Canvas", "Resolution", "Play", "ObserverVM", "Binder" }
             };
         }
 
@@ -255,6 +269,10 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 EditorGUILayout.PropertyField(_serialized.FindProperty("referenceResolution"), new GUIContent("UI Reference Resolution", _serialized.FindProperty("referenceResolution").tooltip));
 
                 EditorGUILayout.PropertyField(_serialized.FindProperty("playStartCheck"), new GUIContent("Play Without a GameMode", _serialized.FindProperty("playStartCheck").tooltip));
+
+                UEArchitectureStyles.Section("ObserverVM");
+
+                EditorGUILayout.PropertyField(_serialized.FindProperty("autoAddFrameworkBinder"), new GUIContent("Add Framework Binders", _serialized.FindProperty("autoAddFrameworkBinder").tooltip));
 
                 if (_serialized.ApplyModifiedProperties())
                 {

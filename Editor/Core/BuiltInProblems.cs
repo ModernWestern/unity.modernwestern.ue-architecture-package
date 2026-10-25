@@ -193,10 +193,26 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             var controller = serialized.FindProperty("aiController");
 
-            if (autoPossess != null && controller != null && autoPossess.enumValueIndex != 0 && controller.objectReferenceValue == null)
+            if (autoPossess == null || controller == null || !(component is Pawn pawn))
+            {
+                return;
+            }
+
+            if (autoPossess.enumValueIndex != (int)AutoPossessAI.Disabled && controller.objectReferenceValue == null)
+            {
+                var only = UEArchitectureActions.OnlyAIControllerClass_Internal();
+
+                var label = only == null ? "Create AI Controller prefab" : FrameworkIndex.PrefabWithExactly(only) != null ? $"Use {only.Name}" : $"Create {only.Name} prefab";
+
+                problems.Add(new Problem(ProblemSeverity.Warning,
+                                         $"Auto Possess is on but there is no AI Controller: {component.gameObject.name} gets a plain AIController that does nothing. Pick your AI Controller prefab, or create one.",
+                                         component).WithFix(label, "create-ai-controller", false, () => UEArchitectureActions.MakeAIPawn(pawn)));
+            }
+            else if (autoPossess.enumValueIndex == (int)AutoPossessAI.Disabled && controller.objectReferenceValue != null)
             {
                 problems.Add(new Problem(ProblemSeverity.Info,
-                                         $"{component.gameObject.name} possesses itself with a plain AIController, which does nothing: pick an AI Controller prefab.", component));
+                                         "An AI Controller is set but Auto Possess AI is Disabled: nothing uses it until your code calls SpawnDefaultController. Turn it on for placed or spawned Pawns.",
+                                         component).WithFix("Placed and spawned", "turn-on-auto-possess", false, () => UEArchitectureActions.SetAutoPossess(pawn, AutoPossessAI.PlacedInWorldOrSpawned)));
             }
         }
 

@@ -13,16 +13,19 @@ namespace ModernWestern.UEArchitecture.EditorTools
     /// <summary>
     /// The HUD inspector: its fields, "Canvas on the root" and "EventSystem in this level" with their fixes, and the empty
     /// references a child could fill ("Find children by name"). Other editor assemblies add sections through
-    /// <see cref="ExtraSections"/>.
+    /// <see cref="RegisterSection"/>.
     /// </summary>
     [CustomEditor(typeof(HUD), true)]
     [CanEditMultipleObjects]
     internal sealed class HUDEditor : Editor
     {
         /// <summary>
-        /// Sections drawn after the built-in ones, for one HUD (the ObserverVM integration adds its own here).
+        /// Sections drawn after the built-in ones, for one HUD (the ObserverVM integration adds its own through
+        /// <see cref="RegisterSection"/>).
         /// </summary>
         internal static readonly List<Action<HUD, SerializedObject>> ExtraSections = new();
+
+        private static readonly HashSet<Action<HUD, SerializedObject>> _failedSections = new();
 
         private int _version = -1;
 
@@ -84,19 +87,89 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
             }
 
-            foreach (var section in ExtraSections)
+            DrawExtraSections_Internal(hud, serializedObject);
+        }
+
+        /// <summary>
+        /// Adds a section to <see cref="ExtraSections"/> (once). Registering a section again gives it a new chance after it
+        /// threw.
+        /// </summary>
+        internal static void RegisterSection(Action<HUD, SerializedObject> section)
+        {
+            if (section == null)
             {
+                return;
+            }
+
+            _failedSections.Remove(section);
+
+            ExtraSections.Remove(section);
+
+            ExtraSections.Add(section);
+        }
+
+        internal static void UnregisterSection(Action<HUD, SerializedObject> section)
+        {
+            ExtraSections.Remove(section);
+
+            _failedSections.Remove(section);
+        }
+
+        /// <summary>
+        /// Draws the extra sections. One that throws is logged once and not drawn again until it is registered again (it may
+        /// have broken this frame's layout, and would log on every repaint); GUI.enabled, the GUI colors and the indent
+        /// level are put back after each one.
+        /// </summary>
+        internal static void DrawExtraSections_Internal(HUD hud, SerializedObject serializedObject)
+        {
+            foreach (var section in ExtraSections.ToArray())
+            {
+                if (_failedSections.Contains(section))
+                {
+                    continue;
+                }
+
+                var enabled = GUI.enabled;
+
+                var color = GUI.color;
+
+                var backgroundColor = GUI.backgroundColor;
+
+                var contentColor = GUI.contentColor;
+
+                var indentLevel = EditorGUI.indentLevel;
+
+                var failed = false;
+
                 try
                 {
                     section(hud, serializedObject);
                 }
-                catch (ExitGUIException)
+                catch (Exception exception) when (!(exception is ExitGUIException))
                 {
-                    throw;
-                }
-                catch (Exception exception)
-                {
+                    _failedSections.Add(section);
+
                     Debug.LogException(exception);
+
+                    failed = true;
+                }
+                finally
+                {
+                    GUI.enabled = enabled;
+
+                    GUI.color = color;
+
+                    GUI.backgroundColor = backgroundColor;
+
+                    GUI.contentColor = contentColor;
+
+                    EditorGUI.indentLevel = indentLevel;
+                }
+
+                if (failed && Event.current != null)
+                {
+                    // Draws the inspector again without it, instead of finishing a frame whose layout it may have broken.
+                    GUIUtility.ExitGUI();
                 }
             }
         }
@@ -320,24 +393,6 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     ClassField.Run_Internal(() => UEArchitectureActions.Assign(owner, propertyPath, tag));
                 }
             });
-        }
-    }
-
-    /// <summary>
-    /// The Pawn inspector: its fields as usual, plus its problems (Auto Possess AI with a plain AIController).
-    /// </summary>
-    [CustomEditor(typeof(Pawn), true)]
-    [CanEditMultipleObjects]
-    internal sealed class PawnEditor : Editor
-    {
-        public override void OnInspectorGUI()
-        {
-            DrawDefaultInspector();
-
-            if (targets.Length == 1)
-            {
-                ProblemsSection.Draw((Pawn)target);
-            }
         }
     }
 }

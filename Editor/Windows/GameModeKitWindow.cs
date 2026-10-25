@@ -154,6 +154,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     EditorGUILayout.LabelField(UiBuilders.NeedsUnityUI, UEArchitectureStyles.MutedLabel);
                 }
 
+                DrawHudPreset_Internal(plan);
+
                 request.stateFiles = (StateFiles)EditorGUILayout.EnumPopup(new GUIContent("New State Classes", "Where the new GameState and PlayerState classes go."), request.stateFiles);
 
                 UEArchitectureStyles.Section("Use it");
@@ -178,6 +180,41 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
                 DrawPreview_Internal(plan);
             }
+        }
+
+        /// <summary>
+        /// The HUD presets other packages add (ObserverVM: widgets for the Game State and Player State), offered when the
+        /// set's state classes have something to show.
+        /// </summary>
+        private void DrawHudPreset_Internal(KitPlan plan)
+        {
+            if (HudPresets.All.Count == 0)
+            {
+                return;
+            }
+
+            var gameState = plan?.GameState?.Type;
+
+            var playerState = plan?.PlayerState?.Type;
+
+            var available = HudPresets.All.Where(preset => preset.Available(gameState, playerState)).ToList();
+
+            if (available.Count == 0)
+            {
+                request.hudPreset = string.Empty;
+
+                EditorGUILayout.LabelField("HUD widgets: give the Game State or Player State an Observable to offer widgets for them.", UEArchitectureStyles.MutedLabel);
+
+                return;
+            }
+
+            var labels = new[] { new GUIContent("Nothing else") }.Concat(available.Select(preset => new GUIContent(preset.Label, preset.Tooltip))).ToArray();
+
+            var index = available.FindIndex(preset => string.Equals(preset.Id, request.hudPreset, StringComparison.OrdinalIgnoreCase)) + 1;
+
+            index = EditorGUILayout.Popup(new GUIContent("HUD Content", "What else goes in the HUD prefab."), index, labels);
+
+            request.hudPreset = index <= 0 ? string.Empty : available[index - 1].Id;
         }
 
         private void Row_Internal(string label, KitChoice choice, Type baseType, KitSlot slot)
