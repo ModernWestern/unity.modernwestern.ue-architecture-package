@@ -159,16 +159,19 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             _renameUsages = null;
 
+            // The search gets its own row, so the buttons fit in a narrow window.
+            if (string.IsNullOrWhiteSpace(externalSearch))
+            {
+                _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField);
+            }
+            else
+            {
+                EditorGUILayout.LabelField($"Showing tags that contain \"{externalSearch.Trim()}\".", UEArchitectureStyles.MutedLabel);
+            }
+
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (string.IsNullOrWhiteSpace(externalSearch))
-                {
-                    _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.MinWidth(120f));
-                }
-                else
-                {
-                    EditorGUILayout.LabelField($"Showing tags that contain \"{externalSearch.Trim()}\".", UEArchitectureStyles.MutedLabel);
-                }
+                GUILayout.FlexibleSpace();
 
                 if (GUILayout.Button(new GUIContent("Add", "Add a top-level tag."), EditorStyles.miniButtonLeft, GUILayout.Width(44f)))
                 {
@@ -341,10 +344,12 @@ namespace ModernWestern.UEArchitecture.EditorTools
         {
             var path = UEArchitectureEditorSettings.instance.TagConstantsPath;
 
+            EditorGUILayout.LabelField(new GUIContent($"Constants: {path}", "Tags.Status.Burning instead of GameplayTag.Request(\"Status.Burning\"). Change the file in Project Settings > UE Architecture > Editor."),
+                                       UEArchitectureStyles.MutedLabel);
+
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField(new GUIContent($"Constants: {path}", "Tags.Status.Burning instead of GameplayTag.Request(\"Status.Burning\"). Change the file in Project Settings > UE Architecture > Editor."),
-                                           UEArchitectureStyles.MutedLabel);
+                GUILayout.FlexibleSpace();
 
                 if (GUILayout.Button(new GUIContent("Generate C# constants", "Write the tags as C# constants (one compile)."), EditorStyles.miniButton, GUILayout.Width(150f)))
                 {
