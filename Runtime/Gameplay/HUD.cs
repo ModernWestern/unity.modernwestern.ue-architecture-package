@@ -9,6 +9,7 @@ namespace ModernWestern.UEArchitecture
     /// PlayerState, Pawn, PlayerController, the GameState or a subsystem, depending on the ViewModel type each one expects.
     /// </summary>
     [DisallowMultipleComponent]
+    [AddComponentMenu("UE Architecture/HUD")]
     public class HUD : MonoBehaviour
     {
         private PlayerController _owner;

@@ -1,0 +1,36 @@
+{
+    "name": "UEArchitecture.ObserverVM.Editor",
+    "rootNamespace": "ModernWestern.UEArchitecture.EditorTools",
+    "references": [
+        "UEArchitecture.Runtime",
+        "UEArchitecture.Editor",
+        "UEArchitecture.ObserverVM",
+        "ObserverVM",
+        "ObserverVM.Editor",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UEA_OBSERVERVM_EDITOR"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.modernwestern.observer-vm",
+            "expression": "2.2.0",
+            "define": "UEA_OBSERVERVM_EDITOR"
+        },
+        {
+            "name": "com.modernwestern.observer-vm",
+            "expression": "2.4.0",
+            "define": "UEA_OBSERVERVM_INFO"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -27,6 +27,11 @@
             "name": "com.unity.test-framework",
             "expression": "1.0.0",
             "define": "UEA_TEST_FRAMEWORK"
+        },
+        {
+            "name": "com.unity.modules.ai",
+            "expression": "1.0.0",
+            "define": "UEA_NAVIGATION"
         }
     ],
     "noEngineReferences": false

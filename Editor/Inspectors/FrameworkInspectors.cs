@@ -1,118 +1,54 @@
-using System;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
+using UnityEditor.SceneManagement;
 
 namespace ModernWestern.UEArchitecture.EditorTools
 {
     /// <summary>
-    /// What a GameMode creates: reads the GameState and PlayerState classes from GameMode&lt;TGameState, TPlayerState&gt;.
+    /// The GameMode inspector: its default classes as class fields (pick, create, variant, open), its GameState and
+    /// PlayerState classes, the rest of its fields, and for a GameMode placed in a level, its level references.
     /// </summary>
-    internal static class GameModeInfo
-    {
-        public static Type GameStateType(Type gameModeType) => GenericArgument_Internal(gameModeType, 0) ?? typeof(GameState);
-
-        public static Type PlayerStateType(Type gameModeType) => GenericArgument_Internal(gameModeType, 1) ?? typeof(PlayerState);
-
-        /// <summary>
-        /// The GameMode a level will use: one placed in the scene, else its World Settings override, else the project default.
-        /// </summary>
-        public static GameMode Effective(Scene scene, out string source)
-        {
-            var placed = Find<GameMode>(scene);
-
-            if (placed != null)
-            {
-                source = "placed in the scene";
-
-                return placed;
-            }
-
-            var worldSettings = Find<WorldSettings>(scene);
-
-            if (worldSettings != null && worldSettings.GameModeOverride != null)
-            {
-                source = "World Settings override";
-
-                return worldSettings.GameModeOverride;
-            }
-
-            var settings = UEArchitectureSettingsProvider.FindAll().FirstOrDefault();
-
-            if (settings != null && settings.DefaultGameMode != null)
-            {
-                source = "project default";
-
-                return settings.DefaultGameMode;
-            }
-
-            source = "none";
-
-            return null;
-        }
-
-        public static T Find<T>(Scene scene) where T : Component
-        {
-            return scene.IsValid() && scene.isLoaded
-                       ? scene.GetRootGameObjects().Select(root => root.GetComponentInChildren<T>(true)).FirstOrDefault(found => found != null)
-                       : null;
-        }
-
-        public static int Count<T>(Scene scene) where T : Component
-        {
-            return scene.IsValid() && scene.isLoaded ? scene.GetRootGameObjects().Sum(root => root.GetComponentsInChildren<T>(true).Length) : 0;
-        }
-
-        public static string Describe(Object prefab, Type baseType, string empty)
-        {
-            if (prefab == null)
-            {
-                return empty;
-            }
-
-            var type = prefab.GetType();
-
-            return type == baseType ? prefab.name : $"{prefab.name}  ({type.Name})";
-        }
-
-        private static Type GenericArgument_Internal(Type type, int index)
-        {
-            for (var current = type; current != null; current = current.BaseType)
-            {
-                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(GameMode<,>))
-                {
-                    return current.GetGenericArguments()[index];
-                }
-            }
-
-            return null;
-        }
-    }
-
     [CustomEditor(typeof(GameMode), true)]
+    [CanEditMultipleObjects]
     internal sealed class GameModeEditor : Editor
     {
+        private static readonly string[] _panelFields = { "m_Script", "playerController", "defaultPawn", "hud", "playersAtStart" };
+
         public override void OnInspectorGUI()
         {
-            DrawDefaultInspector();
+            serializedObject.Update();
+
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
+            }
 
             var gameMode = (GameMode)target;
 
-            UEArchitectureStyles.Section("When a level begins, it creates");
+            var single = targets.Length == 1;
 
-            UEArchitectureStyles.Row("GameState", GameModeInfo.GameStateType(gameMode.GetType()).Name);
+            UEArchitectureStyles.Section("Default classes");
 
-            UEArchitectureStyles.Row("PlayerState (each player)", GameModeInfo.PlayerStateType(gameMode.GetType()).Name);
+            SelectedGameModePanel.DrawRows(serializedObject, new GameModePanelContext
+            {
+                Mode = GameModePanelMode.Inspector,
+                SceneName = single ? LevelOfOverride_Internal(gameMode) : null
+            });
 
-            UEArchitectureStyles.Row("PlayerController", GameModeInfo.Describe(gameMode.PlayerControllerPrefab, typeof(PlayerController), "PlayerController (default)"), gameMode.PlayerControllerPrefab == null);
+            DrawPropertiesExcluding(serializedObject, _panelFields);
 
-            UEArchitectureStyles.Row("Pawn", GameModeInfo.Describe(gameMode.DefaultPawnPrefab, typeof(Pawn), "none: players start without a Pawn"), gameMode.DefaultPawnPrefab == null);
+            serializedObject.ApplyModifiedProperties();
 
-            UEArchitectureStyles.Row("HUD", GameModeInfo.Describe(gameMode.HUDPrefab, typeof(HUD), "none"), gameMode.HUDPrefab == null);
+            if (!single)
+            {
+                return;
+            }
 
-            UEArchitectureStyles.Row("Players at start", gameMode.PlayersAtStart.ToString());
+            SelectedGameModePanel.DrawFooter(gameMode);
+
+            ProblemsSection.Draw(gameMode);
+
+            SceneReferencesSection.Draw(serializedObject);
 
             if (Application.isPlaying && gameMode.HasStartedPlay)
             {
@@ -124,114 +60,74 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
             }
         }
-    }
 
-    [CustomEditor(typeof(WorldSettings))]
-    internal sealed class WorldSettingsEditor : Editor
-    {
-        public override void OnInspectorGUI()
+        /// <summary>
+        /// The level a GameMode prefab is the own override of ("Boss" for Assets/Prefabs/Modes/Boss/ArenaGameMode.prefab).
+        /// </summary>
+        private static string LevelOfOverride_Internal(GameMode gameMode)
         {
-            serializedObject.Update();
+            var path = AssetDatabase.GetAssetPath(Scaffold.Persistent(gameMode));
 
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("gameModeOverride"), new GUIContent("GameMode Override"));
-
-            serializedObject.ApplyModifiedProperties();
-
-            var scene = ((WorldSettings)target).gameObject.scene;
-
-            if (!scene.IsValid())
-            {
-                return;
-            }
-
-            UEArchitectureStyles.Section("This level");
-
-            var gameMode = GameModeInfo.Effective(scene, out var source);
-
-            UEArchitectureStyles.Row("GameMode", gameMode != null ? $"{gameMode.name}  ({source})" : "none: no players are spawned", gameMode == null);
-
-            if (gameMode == null)
-            {
-                if (UEArchitectureStyles.Notice("Pick a GameMode prefab above, or set a default one for every level.", MessageType.None, "Open Project Settings"))
-                {
-                    SettingsService.OpenProjectSettings(UEArchitectureSettingsProvider.SettingsPath);
-                }
-
-                return;
-            }
-
-            UEArchitectureStyles.Row("GameState / PlayerState", $"{GameModeInfo.GameStateType(gameMode.GetType()).Name} / {GameModeInfo.PlayerStateType(gameMode.GetType()).Name}");
-
-            UEArchitectureStyles.Row("Pawn", GameModeInfo.Describe(gameMode.DefaultPawnPrefab, typeof(Pawn), "none"), gameMode.DefaultPawnPrefab == null);
-
-            var starts = GameModeInfo.Count<PlayerStart>(scene);
-
-            UEArchitectureStyles.Row("Player Starts", starts.ToString(), starts == 0);
-
-            if (gameMode.DefaultPawnPrefab != null && starts == 0 &&
-                UEArchitectureStyles.Notice("No PlayerStart in this level: players will spawn where the GameMode is.", MessageType.Warning, "Add PlayerStart"))
-            {
-                FrameworkMenus.CreatePlayerStart(scene);
-            }
-
-            if (GameModeInfo.Count<WorldSettings>(scene) > 1)
-            {
-                EditorGUILayout.HelpBox("This level has more than one World Settings; only the first one is used.", MessageType.Warning);
-            }
+            return string.IsNullOrEmpty(path) ? null : GeneratorNaming.SceneOfOverrideFolder(GeneratorNaming.FolderOf(path), UEArchitectureEditorSettings.Current);
         }
     }
 
     /// <summary>
-    /// GameObject > UE Architecture: World Settings and Player Start.
+    /// The World Settings inspector, like Unreal's: the GameMode Override as a class field, the Selected GameMode panel
+    /// with "Override for this level", and the level's Player Starts.
     /// </summary>
-    internal static class FrameworkMenus
+    [CustomEditor(typeof(WorldSettings))]
+    internal sealed class WorldSettingsEditor : Editor
     {
-        [MenuItem("GameObject/UE Architecture/World Settings", false, 10)]
-        private static void CreateWorldSettings(MenuCommand command)
-        {
-            var existing = GameModeInfo.Find<WorldSettings>(SceneManager.GetActiveScene());
+        private static readonly GUIContent _overrideLabel = new("GameMode Override", "The GameMode prefab of this level. Empty = the default GameMode from Project Settings.");
 
-            if (existing != null)
+        public override void OnInspectorGUI()
+        {
+            serializedObject.Update();
+
+            var worldSettings = (WorldSettings)target;
+
+            var scene = worldSettings.gameObject.scene;
+
+            var isLevel = !EditorUtility.IsPersistent(worldSettings) && scene.IsValid() && scene.isLoaded && !EditorSceneManager.IsPreviewScene(scene);
+
+            // The level's override folder name: its own copies are "this level" in the picker, and variants go there.
+            var sceneName = isLevel ? GameModeInfo.LevelKey(scene) : null;
+
+            ClassField.Layout(serializedObject.FindProperty("gameModeOverride"), _overrideLabel, typeof(GameMode), new ClassFieldOptions { SceneName = sceneName });
+
+            serializedObject.ApplyModifiedProperties();
+
+            if (!isLevel)
             {
-                Selection.activeGameObject = existing.gameObject;
+                EditorGUILayout.LabelField("Placed in a level, World Settings picks that level's GameMode.", UEArchitectureStyles.MutedLabel);
 
                 return;
             }
 
-            Create_Internal<WorldSettings>("World Settings", command.context as GameObject, SceneManager.GetActiveScene());
+            SelectedGameModePanel.DrawForLevel(scene);
+
+            DrawLevel_Internal(scene);
         }
 
-        [MenuItem("GameObject/UE Architecture/Player Start", false, 11)]
-        private static void CreatePlayerStartMenu(MenuCommand command)
+        private static void DrawLevel_Internal(UnityEngine.SceneManagement.Scene scene)
         {
-            Create_Internal<PlayerStart>("Player Start", command.context as GameObject, SceneManager.GetActiveScene());
-        }
+            var report = ProblemProviders.ForLevel(scene);
 
-        public static PlayerStart CreatePlayerStart(Scene scene)
-        {
-            return Create_Internal<PlayerStart>("Player Start", null, scene);
-        }
+            UEArchitectureStyles.Section("This level");
 
-        private static T Create_Internal<T>(string name, GameObject parent, Scene scene) where T : Component
-        {
-            var gameObject = new GameObject(name);
+            UEArchitectureStyles.Row("Player Starts", $"{report.Starts} of {report.Players}", report.Starts < report.Players);
 
-            if (parent != null)
+            UEArchitectureStyles.Row("Build Settings", report.InBuild ? "included" : "not included", !report.InBuild);
+
+            // The level's own problems; those of its objects show on them.
+            foreach (var problem in report.Problems)
             {
-                GameObjectUtility.SetParentAndAlign(gameObject, parent);
+                if (problem.Context == null)
+                {
+                    ProblemsSection.DrawProblem(problem);
+                }
             }
-            else if (scene.IsValid() && gameObject.scene != scene)
-            {
-                SceneManager.MoveGameObjectToScene(gameObject, scene);
-            }
-
-            var component = gameObject.AddComponent<T>();
-
-            Undo.RegisterCreatedObjectUndo(gameObject, "Create " + name);
-
-            Selection.activeGameObject = gameObject;
-
-            return component;
         }
     }
 }

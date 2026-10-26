@@ -9,6 +9,7 @@ namespace ModernWestern.UEArchitecture
     /// <para>To use your own class, derive from it, put it on a prefab and pick that prefab in Project Settings > UE Architecture.</para>
     /// </summary>
     [DisallowMultipleComponent]
+    [AddComponentMenu("UE Architecture/Game Instance")]
     public class GameInstance : MonoBehaviour
     {
         /// <summary>

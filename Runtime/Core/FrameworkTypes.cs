@@ -50,7 +50,11 @@ namespace ModernWestern.UEArchitecture
 
             var frameworkName = frameworkAssembly.GetName().Name;
 
+#if UNITY_6000_4_OR_NEWER
+            return UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies()
+#else
             return AppDomain.CurrentDomain.GetAssemblies()
+#endif
                             .Where(assembly => assembly == frameworkAssembly || References_Internal(assembly, frameworkName))
                             .SelectMany(Types_Internal)
                             .Where(baseType.IsAssignableFrom);

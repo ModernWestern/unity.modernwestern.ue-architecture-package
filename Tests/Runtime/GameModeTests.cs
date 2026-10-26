@@ -248,6 +248,241 @@ namespace ModernWestern.UEArchitecture.Tests
         }
 
         [UnityTest]
+        public IEnumerator APlacedPawnWithAutoPossessPlayer_IsPossessedInsteadOfTheDefaultPawn()
+        {
+            var placed = Create<TestPawn>("Player Character");
+
+            placed.transform.position = new Vector3(10f, 0f, 0f);
+
+            placed.AutoPossessPlayer = 0;
+
+            var level = OpenLevel(_worldSettings, _start, _secondStart, placed);
+
+            yield return null;
+
+            var player = World.GetPlayer();
+
+            Assert.AreSame(placed, player.Pawn, "Player 1 possesses the placed Pawn.");
+
+            Assert.AreSame(player, placed.Controller);
+
+            Assert.AreEqual(new Vector3(10f, 0f, 0f), placed.transform.position, "It stays where it was placed, not at a Player Start.");
+
+            Assert.AreEqual(1, placed.Possessions);
+
+            Assert.AreEqual(1, PawnsIn_Internal(level), "No Default Pawn was spawned.");
+
+            Assert.Less(IndexOf("GameMode.InitGame"), IndexOf("Player Character.Possessed"));
+
+            Assert.Less(IndexOf("Player Character.Possessed"), IndexOf("GameMode.PostLogin Player 1"), "Possessed before PostLogin, like a spawned Pawn.");
+
+            Assert.Less(IndexOf("GameMode.PostLogin Player 1"), IndexOf("GameMode.StartPlay"));
+        }
+
+        [UnityTest]
+        public IEnumerator APlacedPawnWithoutAutoPossessPlayer_KeepsTheDefaultPawn()
+        {
+            var placed = Create<TestPawn>("Statue");
+
+            Assert.AreEqual(-1, placed.AutoPossessPlayer, "Off by default.");
+
+            var level = OpenLevel(_worldSettings, _start, placed);
+
+            yield return null;
+
+            var pawn = World.GetPawn<TestPawn>();
+
+            Assert.AreNotSame(placed, pawn);
+
+            Assert.AreEqual("Hero", pawn.name, "The Default Pawn, as before.");
+
+            Assert.AreEqual(_start.transform.position, pawn.transform.position);
+
+            Assert.IsNull(placed.Controller);
+
+            Assert.AreEqual(2, PawnsIn_Internal(level));
+        }
+
+        [UnityTest]
+        public IEnumerator APlacedPawnForPlayer2_WaitsForPlayer2()
+        {
+            var placed = Create<TestPawn>("Second Character");
+
+            placed.AutoPossessPlayer = 1;
+
+            OpenLevel(_worldSettings, _start, _secondStart, placed);
+
+            yield return null;
+
+            Assert.AreEqual("Hero", World.GetPawn<TestPawn>().name, "Player 1 gets the Default Pawn.");
+
+            Assert.IsNull(placed.Controller);
+
+            var second = World.GameMode.AddPlayer();
+
+            Assert.AreSame(placed, second.Pawn, "Player 2 possesses its placed Pawn when it joins.");
+        }
+
+        [UnityTest]
+        public IEnumerator APlacedPawnYourCodeAlreadyPossessed_IsLeftAlone()
+        {
+            var placed = Create<TestPawn>("Taken");
+
+            placed.AutoPossessPlayer = 0;
+
+            var mode = Create<TestCodePossessGameMode>("Code Mode");
+
+            Set(mode, "taken", placed);
+
+            Set(mode, "defaultPawn", Template<TestPawn>("Hero"));
+
+            OpenLevel(mode, _start, placed);
+
+            yield return null;
+
+            Assert.IsInstanceOf<AIController>(placed.Controller, "Still the controller the code gave it.");
+
+            var pawn = World.GetPawn<TestPawn>();
+
+            Assert.IsNotNull(pawn);
+
+            Assert.AreNotSame(placed, pawn, "The player gets its Default Pawn instead.");
+
+            Assert.AreEqual("Hero", pawn.name);
+        }
+
+        [UnityTest]
+        public IEnumerator APlacedPawnForThePlayer_WinsOverAutoPossessAI()
+        {
+            var placed = Create<TestPawn>("Player Character");
+
+            placed.AutoPossessPlayer = 0;
+
+            placed.AutoPossessAI = AutoPossessAI.PlacedInWorld;
+
+            OpenLevel(_worldSettings, _start, placed);
+
+            yield return null;
+
+            Assert.AreSame(World.GetPlayer(), placed.Controller);
+
+            Assert.AreEqual(0, World.AIControllers.Count, "No AI controller was made for it.");
+        }
+
+        [UnityTest]
+        public IEnumerator RestartPlayer_AfterThePlacedPawnDies_SpawnsTheDefaultPawn()
+        {
+            var placed = Create<TestPawn>("Player Character");
+
+            placed.AutoPossessPlayer = 0;
+
+            OpenLevel(_worldSettings, _start, placed);
+
+            yield return null;
+
+            var player = World.GetPlayer();
+
+            Object.Destroy(placed.gameObject);
+
+            yield return null;
+
+            World.GameMode.RestartPlayer(player);
+
+            Assert.IsNotNull(player.Pawn);
+
+            Assert.AreEqual("Hero", player.Pawn.name);
+
+            Assert.AreEqual(_start.transform.position, player.Pawn.transform.position);
+        }
+
+        [UnityTest]
+        public IEnumerator RestartPlayer_AfterLeavingThePlacedPawnAlive_SpawnsTheDefaultPawn()
+        {
+            var placed = Create<TestPawn>("Player Character");
+
+            placed.AutoPossessPlayer = 0;
+
+            OpenLevel(_worldSettings, _start, placed);
+
+            yield return null;
+
+            var player = World.GetPlayer();
+
+            Assert.AreSame(placed, player.Pawn);
+
+            // Like getting out of a vehicle or a corpse left behind: the placed Pawn is alive and free again.
+            player.UnPossess();
+
+            Assert.IsNull(placed.Controller);
+
+            World.GameMode.RestartPlayer(player);
+
+            Assert.IsNotNull(player.Pawn);
+
+            Assert.AreNotSame(placed, player.Pawn, "Auto Possess Player is used once per level, as in Unreal.");
+
+            Assert.AreEqual("Hero", player.Pawn.name);
+
+            Assert.IsNull(placed.Controller);
+
+            Assert.AreEqual(1, placed.Possessions);
+        }
+
+        [UnityTest]
+        public IEnumerator TwoPlacedPawnsForTheSamePlayer_OnlyTheFirstIsEverPossessed()
+        {
+            var first = Create<TestPawn>("First Character");
+
+            first.AutoPossessPlayer = 0;
+
+            var second = Create<TestPawn>("Second Character");
+
+            second.AutoPossessPlayer = 0;
+
+            OpenLevel(_worldSettings, _start, first, second);
+
+            yield return null;
+
+            var player = World.GetPlayer();
+
+            Assert.AreSame(first, player.Pawn);
+
+            Object.Destroy(first.gameObject);
+
+            yield return null;
+
+            World.GameMode.RestartPlayer(player);
+
+            Assert.AreNotSame(second, player.Pawn, "The duplicate is not a fallback.");
+
+            Assert.AreEqual("Hero", player.Pawn.name);
+
+            Assert.IsNull(second.Controller);
+        }
+
+        [UnityTest]
+        public IEnumerator APlacedPawnForPlayer2_WithAutoPossessAI_WaitsForPlayer2()
+        {
+            var placed = Create<TestPawn>("Second Character");
+
+            placed.AutoPossessPlayer = 1;
+
+            placed.AutoPossessAI = AutoPossessAI.PlacedInWorld;
+
+            OpenLevel(_worldSettings, _start, _secondStart, placed);
+
+            yield return null;
+
+            Assert.IsNull(placed.Controller, "The player wins over Auto Possess AI: it waits for Player 2.");
+
+            Assert.AreEqual(0, World.AIControllers.Count);
+
+            var second = World.GameMode.AddPlayer();
+
+            Assert.AreSame(placed, second.Pawn);
+        }
+
+        [UnityTest]
         public IEnumerator ALevelWithoutGameMode_StillWorks()
         {
             OpenLevel(_start);
@@ -263,6 +498,18 @@ namespace ModernWestern.UEArchitecture.Tests
             Assert.IsNull(World.GetPlayer());
 
             Assert.IsNotNull(World.Get<LevelSubsystem>());
+        }
+
+        private static int PawnsIn_Internal(UnityEngine.SceneManagement.Scene level)
+        {
+            var count = 0;
+
+            foreach (var root in level.GetRootGameObjects())
+            {
+                count += root.GetComponentsInChildren<Pawn>().Length;
+            }
+
+            return count;
         }
     }
 }

@@ -18,6 +18,11 @@
             "name": "com.unity.modules.ai",
             "expression": "1.0.0",
             "define": "UEA_NAVIGATION"
+        },
+        {
+            "name": "com.unity.modules.physics",
+            "expression": "1.0.0",
+            "define": "UEA_PHYSICS"
         }
     ],
     "noEngineReferences": false

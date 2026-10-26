@@ -1,0 +1,28 @@
+{
+    "name": "UEArchitecture.Editor.UGUI",
+    "rootNamespace": "ModernWestern.UEArchitecture.EditorTools",
+    "references": [
+        "UEArchitecture.Runtime",
+        "UEArchitecture.Editor",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UEA_UGUI"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.ugui",
+            "expression": "1.0.0",
+            "define": "UEA_UGUI"
+        }
+    ],
+    "noEngineReferences": false
+}

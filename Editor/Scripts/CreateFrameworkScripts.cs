@@ -1,19 +1,20 @@
-using System;
 using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
-using UnityEditor.Compilation;
-using UnityEditor.ProjectWindowCallback;
 
 namespace ModernWestern.UEArchitecture.EditorTools
 {
     /// <summary>
     /// Assets > Create > UE Architecture: ready-to-fill scripts for every piece of the framework. They go into the root
-    /// namespace of the folder's assembly (or the project's), if one is set.
+    /// namespace of the folder's assembly (or the project's), if one is set. Written through ScriptWriter, so a name that
+    /// is taken (a file or a class) is reported instead of making "ArenaPawn 1.cs".
     /// </summary>
     public static class CreateFrameworkScripts
     {
+        /// <summary>
+        /// The script templates. New kinds are added at the end, so saved values keep their meaning.
+        /// </summary>
         public enum Kind
         {
             GameInstance,
@@ -24,7 +25,14 @@ namespace ModernWestern.UEArchitecture.EditorTools
             AIController,
             Pawn,
             HUD,
-            LoadingScreen
+            LoadingScreen,
+            GameState,
+            PlayerState,
+            PlayerStart,
+            SaveGame,
+            Message,
+            TickableGameInstanceSubsystem,
+            TickableWorldSubsystem
         }
 
         private const string Menu = "Assets/Create/UE Architecture/";
@@ -35,26 +43,47 @@ namespace ModernWestern.UEArchitecture.EditorTools
         [MenuItem(Menu + "Game Instance Subsystem", false, 81)]
         private static void CreateGameSubsystem() => Start_Internal(Kind.GameInstanceSubsystem, "NewSubsystem");
 
-        [MenuItem(Menu + "World Subsystem", false, 82)]
+        [MenuItem(Menu + "Game Instance Subsystem (Tickable)", false, 82)]
+        private static void CreateTickableGameSubsystem() => Start_Internal(Kind.TickableGameInstanceSubsystem, "NewTickableSubsystem");
+
+        [MenuItem(Menu + "World Subsystem", false, 83)]
         private static void CreateWorldSubsystem() => Start_Internal(Kind.WorldSubsystem, "NewWorldSubsystem");
 
-        [MenuItem(Menu + "Game Mode (+ GameState, PlayerState)", false, 93)]
+        [MenuItem(Menu + "World Subsystem (Tickable)", false, 84)]
+        private static void CreateTickableWorldSubsystem() => Start_Internal(Kind.TickableWorldSubsystem, "NewTickableWorldSubsystem");
+
+        [MenuItem(Menu + "Game Mode (+ GameState, PlayerState)", false, 95)]
         private static void CreateGameMode() => Start_Internal(Kind.GameMode, "NewGameMode");
 
-        [MenuItem(Menu + "Player Controller", false, 94)]
+        [MenuItem(Menu + "Game State", false, 96)]
+        private static void CreateGameState() => Start_Internal(Kind.GameState, "NewGameState");
+
+        [MenuItem(Menu + "Player State", false, 97)]
+        private static void CreatePlayerState() => Start_Internal(Kind.PlayerState, "NewPlayerState");
+
+        [MenuItem(Menu + "Player Controller", false, 98)]
         private static void CreatePlayerController() => Start_Internal(Kind.PlayerController, "NewPlayerController");
 
-        [MenuItem(Menu + "AI Controller", false, 95)]
+        [MenuItem(Menu + "AI Controller", false, 99)]
         private static void CreateAIController() => Start_Internal(Kind.AIController, "NewAIController");
 
-        [MenuItem(Menu + "Pawn", false, 96)]
+        [MenuItem(Menu + "Pawn", false, 100)]
         private static void CreatePawn() => Start_Internal(Kind.Pawn, "NewPawn");
 
-        [MenuItem(Menu + "HUD", false, 97)]
+        [MenuItem(Menu + "HUD", false, 101)]
         private static void CreateHud() => Start_Internal(Kind.HUD, "NewHUD");
 
-        [MenuItem(Menu + "Loading Screen", false, 107)]
+        [MenuItem(Menu + "Player Start", false, 102)]
+        private static void CreatePlayerStart() => Start_Internal(Kind.PlayerStart, "NewPlayerStart");
+
+        [MenuItem(Menu + "Loading Screen", false, 113)]
         private static void CreateLoadingScreen() => Start_Internal(Kind.LoadingScreen, "NewLoadingScreen");
+
+        [MenuItem(Menu + "Save Game", false, 124)]
+        private static void CreateSaveGame() => Start_Internal(Kind.SaveGame, "NewSaveGame");
+
+        [MenuItem(Menu + "Message", false, 125)]
+        private static void CreateMessage() => Start_Internal(Kind.Message, "NewMessage");
 
         /// <summary>
         /// The source of a script, e.g. Source(Kind.GameMode, "Arena", "MyGame") declares ArenaGameMode, ArenaGameState and
@@ -62,32 +91,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
         /// </summary>
         public static string Source(Kind kind, string typedName, string rootNamespace)
         {
-            var name = ClassName(typedName);
-
-            var body = Template_Internal(kind).Replace("#NAME#", name).Replace("#BASE#", BaseName_Internal(name, "GameMode", "Mode"));
-
-            var usings = new StringBuilder();
-
-            var code = new StringBuilder();
-
-            foreach (var line in body.Replace("\r\n", "\n").Split('\n'))
-            {
-                (line.StartsWith("using ", StringComparison.Ordinal) ? usings : code).Append(line).Append('\n');
-            }
-
-            if (string.IsNullOrWhiteSpace(rootNamespace))
-            {
-                return usings + code.ToString().TrimStart('\n');
-            }
-
-            var indented = new StringBuilder();
-
-            foreach (var line in code.ToString().Trim('\n').Split('\n'))
-            {
-                indented.Append(line.Length == 0 ? string.Empty : "    " + line).Append('\n');
-            }
-
-            return $"{usings}\nnamespace {rootNamespace}\n{{\n{indented}}}\n";
+            return ClassTemplates.Source(kind, typedName, rootNamespace);
         }
 
         /// <summary>
@@ -128,20 +132,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
         {
             var name = ClassName(typed);
 
-            return kind == Kind.GameMode ? BaseName_Internal(name, "GameMode", "Mode") + "GameMode" : name;
-        }
-
-        private static string BaseName_Internal(string name, params string[] suffixes)
-        {
-            foreach (var suffix in suffixes)
-            {
-                if (name.Length > suffix.Length && name.EndsWith(suffix, StringComparison.Ordinal))
-                {
-                    return name.Substring(0, name.Length - suffix.Length);
-                }
-            }
-
-            return name;
+            return kind == Kind.GameMode ? ClassTemplates.BaseName(name, "GameMode", "Mode") + "GameMode" : name;
         }
 
         private static void Start_Internal(Kind kind, string defaultName)
@@ -152,228 +143,69 @@ namespace ModernWestern.UEArchitecture.EditorTools
 
             var icon = EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
 
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, action, defaultName + ".cs", icon, null);
+            EditorCompat.StartNameEditing(action, defaultName + ".cs", icon);
         }
 
-        private sealed class CreateAction : EndNameEditAction
+        /// <summary>
+        /// Writes the script(s) of a kind for the path typed in the Project window, through ScriptWriter: a file or class
+        /// that already exists is reported (in a dialog, or the Console in batch mode) and nothing is written. The files
+        /// are what Assets > UE Architecture > Remove Files Made by the Last Action removes next.
+        /// </summary>
+        internal static ActionResult Create_Internal(Kind kind, string pathName)
+        {
+            var plan = ScriptWriter.Plan(new[] { Request_Internal(kind, pathName) });
+
+            var result = ScriptWriter.Write(plan, null, "create-script");
+
+            if (!result.Ok)
+            {
+                var problems = string.Join("\n", result.Problems);
+
+                Debug.LogWarning("UE Architecture: " + problems);
+
+                if (!Application.isBatchMode)
+                {
+                    EditorUtility.DisplayDialog("UE Architecture", problems, "OK");
+                }
+
+                return result;
+            }
+
+            LastCreatedFiles.Remember(result);
+
+            var script = AssetDatabase.LoadAssetAtPath<MonoScript>(plan.Scripts[0].Path);
+
+            if (script != null && !Application.isBatchMode)
+            {
+                ProjectWindowUtil.ShowCreatedAsset(script);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// The request for a path typed in the Project window: in the folder picked there, which may be inside an embedded
+        /// package (Packages/com.studio.game/...), as this menu always allowed.
+        /// </summary>
+        internal static ScriptRequest Request_Internal(Kind kind, string pathName)
+        {
+            var folder = GeneratorNaming.FolderOf((pathName ?? string.Empty).Replace('\\', '/'));
+
+            return new ScriptRequest(Path.GetFileNameWithoutExtension(pathName), ClassTemplates.ParentOf(kind), folder.Length > 0 ? folder : "Assets")
+            {
+                Kind = kind,
+                AllowPackageFolder = true
+            };
+        }
+
+        // The Unity 6.4 end-action change lives in EditorCompat.
+        private sealed class CreateAction : NameOnCreateAction
         {
             public Kind Kind;
 
-            public override void Action(int instanceId, string pathName, string resourceFile)
+            protected override void OnNamed(string pathName, string resourceFile)
             {
-                var folder = Path.GetDirectoryName(pathName)?.Replace('\\', '/') ?? "Assets";
-
-                var className = FileName(Kind, pathName);
-
-                var path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{className}.cs");
-
-                var rootNamespace = CompilationPipeline.GetAssemblyRootNamespaceFromScriptPath(path);
-
-                File.WriteAllText(path, Source(Kind, Kind == Kind.GameMode ? className : Path.GetFileNameWithoutExtension(path), rootNamespace));
-
-                AssetDatabase.ImportAsset(path);
-
-                ProjectWindowUtil.ShowCreatedAsset(AssetDatabase.LoadAssetAtPath<MonoScript>(path));
-            }
-        }
-
-        private static string Template_Internal(Kind kind)
-        {
-            switch (kind)
-            {
-                case Kind.GameInstance:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// The game itself: alive from the first scene until the game quits. Put it on a prefab and pick the prefab in
-// Project Settings > UE Architecture. Prefer subsystems for features (saves, audio...): GameInstance.Get<T>().
-public class #NAME# : GameInstance
-{
-    protected override void Init()
-    {
-    }
-
-    protected override void Shutdown()
-    {
-    }
-}
-";
-
-                case Kind.GameInstanceSubsystem:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// Lives as long as the game and is created by itself. Get it from anywhere: GameInstance.Get<#NAME#>().
-// Add ITickable to get Tick(deltaTime) every frame.
-public sealed class #NAME# : GameInstanceSubsystem
-{
-    protected override void Initialize()
-    {
-    }
-
-    protected override void Deinitialize()
-    {
-    }
-}
-";
-
-                case Kind.WorldSubsystem:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// Lives as long as the current level and is created by itself. Get it from anywhere: World.Get<#NAME#>().
-// Add ITickable to get Tick(deltaTime) every frame.
-public sealed class #NAME# : WorldSubsystem
-{
-    protected override void Initialize()
-    {
-    }
-
-    protected override void OnWorldBeginPlay()
-    {
-        // The GameMode spawned the players.
-    }
-
-    protected override void Deinitialize()
-    {
-    }
-}
-";
-
-                case Kind.GameMode:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// The rules of a level. Put it on a prefab, fill in its default classes (PlayerController, Pawn, HUD) and pick it in a
-// level's World Settings, or as the default GameMode in Project Settings > UE Architecture.
-public class #BASE#GameMode : GameMode<#BASE#GameState, #BASE#PlayerState>
-{
-    protected override void StartPlay()
-    {
-        // The players are spawned: the match starts.
-    }
-
-    protected override void OnPostLogin(PlayerController player)
-    {
-    }
-}
-
-// The state of the match everyone can read (score to win, time left...). Created by the GameMode for each level.
-public class #BASE#GameState : GameState
-{
-    protected override void OnBeginPlay()
-    {
-    }
-
-    protected override void OnEndPlay()
-    {
-    }
-}
-
-// The state of one player (name, score, team...). Survives the Pawn dying.
-public class #BASE#PlayerState : PlayerState
-{
-    public int Score { get; set; }
-}
-";
-
-                case Kind.PlayerController:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// The player's will: reads input and drives the possessed Pawn. Put it on the GameMode's PlayerController prefab.
-public class #NAME# : PlayerController
-{
-    private void Update()
-    {
-        if (Pawn == null)
-        {
-            return;
-        }
-
-        // Read input here and drive the Pawn.
-    }
-
-    protected override void OnPossess(Pawn pawn)
-    {
-    }
-}
-";
-
-                case Kind.AIController:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// An AI: drives its Pawn by code. Put it on a prefab, pick the prefab in the Pawn's AI Controller field and set the Pawn's
-// Auto Possess AI (placed in the level, spawned with World.SpawnPawn, or both).
-public class #NAME# : AIController
-{
-    private void Update()
-    {
-        if (Pawn == null)
-        {
-            return;
-        }
-
-        // Decide here and drive the Pawn.
-    }
-
-    protected override void OnPossess(Pawn pawn)
-    {
-    }
-}
-";
-
-                case Kind.Pawn:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// Something a player or an AI controls. Put it on the GameMode's default Pawn prefab (players) or set its Auto Possess AI
-// (enemies, NPCs). Data that must survive death belongs in the PlayerState.
-public class #NAME# : Pawn
-{
-    protected override void OnPossessed(Controller controller)
-    {
-        // A PlayerController or an AIController.
-    }
-
-    protected override void OnUnPossessed()
-    {
-    }
-}
-";
-
-                case Kind.HUD:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// One player's interface. Put it on the root of the GameMode's HUD prefab (your Canvas).
-// With ObserverVM installed, Widgets inside it get the PlayerState, Pawn, GameState... by themselves.
-public class #NAME# : HUD
-{
-    protected override void OnInit()
-    {
-        // Owner, PlayerState and Pawn are ready.
-    }
-}
-";
-
-                case Kind.LoadingScreen:
-                    return @"using UnityEngine;
-using ModernWestern.UEArchitecture;
-
-// Shown while Levels.Open loads a level. Put it on a prefab with your loading UI and pick it in Project Settings > UE Architecture.
-public class #NAME# : LoadingScreen
-{
-    protected override void OnProgress(float progress)
-    {
-        // From 0 to 1, e.g. fill a progress bar.
-    }
-}
-";
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+                Create_Internal(Kind, pathName);
             }
         }
     }

@@ -145,7 +145,8 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 }
 #endif
 
-                DrawObject_Internal("ai/" + ai.GetInstanceID(), ai, summary, ai, "AI  " + ai.GetType().Name);
+                // A per-object key without GetInstanceID, a compile error since Unity 6.5.
+                DrawObject_Internal("ai/" + EditorCompat.SessionKey(ai), ai, summary, ai, "AI  " + ai.GetType().Name);
             }
 
             var worldTypes = World.AllSubsystems.Select(subsystem => subsystem.GetType()).ToArray();
@@ -195,7 +196,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                     {
                         Selection.activeObject = pathFollowing.gameObject;
 
-                        EditorGUIUtility.PingObject(pathFollowing.gameObject);
+                        EditorCompat.Ping(pathFollowing.gameObject);
                     }
                 }
             }
@@ -266,7 +267,7 @@ namespace ModernWestern.UEArchitecture.EditorTools
                 {
                     Selection.activeObject = target;
 
-                    EditorGUIUtility.PingObject(target);
+                    EditorCompat.Ping(target);
                 }
 
                 if (now != expanded)
