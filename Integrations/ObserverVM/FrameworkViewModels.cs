@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Scripting;
 using System.Collections.Generic;
 using ModernWestern.UI.ObserverVM;
 
@@ -143,6 +144,7 @@ namespace ModernWestern.UEArchitecture
             setter.Set(widget, viewModel);
         }
 
+        [Preserve]
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Hook_Internal()
         {
@@ -178,8 +180,15 @@ namespace ModernWestern.UEArchitecture
             public abstract void Set(Widget widget, object viewModel);
         }
 
+        // Made through MakeGenericType and Activator, so nothing references it for the linker.
+        [Preserve]
         private sealed class WidgetSetter<T> : WidgetSetter where T : class
         {
+            [Preserve]
+            public WidgetSetter()
+            {
+            }
+
             public override void Set(Widget widget, object viewModel)
             {
                 ((Widget<T>)widget).SetViewModel((T)viewModel);

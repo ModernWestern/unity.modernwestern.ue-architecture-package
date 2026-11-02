@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.1] - 2026-11-02
+
+### Fixed
+- IL2CPP builds: the linker removed the whole `UEArchitecture.ObserverVM` assembly, because a game only references it through `[RuntimeInitializeOnLoadMethod]`, so no HUD widget got its ViewModel (no error, no log). The assembly now has `[AlwaysLinkAssembly]`, and the hook and the generic `WidgetSetter<T>` (made through `MakeGenericType`) have `[Preserve]`. Checked in Windows IL2CPP players with stripping Low and High.
+
 ## [2.5.0] - 2026-10-24
 
 ### Added
