@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.6.0] - 2026-11-17
+
+### Added
+- `Levels.Opening`: the `LevelLoad` that `Levels.Open` is running (its `Scene` is the level being opened), or null when no level is opening. Code that needs the destination, such as a loading screen, no longer has to read the private field by reflection.
+
 ## [2.5.1] - 2026-11-02
 
 ### Fixed

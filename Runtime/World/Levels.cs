@@ -40,6 +40,12 @@ namespace ModernWestern.UEArchitecture
         /// </summary>
         public static bool IsOpening => _opening != null && !_opening.IsDone;
 
+        /// <summary>
+        /// The load <see cref="Open(string)"/> is running (its <see cref="LevelLoad.Scene"/> is the level being opened),
+        /// or null when no level is opening.
+        /// </summary>
+        public static LevelLoad Opening => IsOpening ? _opening : null;
+
         public static LevelLoad Open(SceneReference level)
         {
             return Open(level?.Path);

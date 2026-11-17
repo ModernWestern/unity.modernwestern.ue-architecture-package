@@ -130,6 +130,7 @@ Levels.Open(nextLevel);                   // ends this level, loading screen, be
 Levels.Open(nextLevel, bossLoadingScreen);// a specific loading screen (or null for none)
 Levels.Stream("Caves");                   // additive: joins the current level
 Levels.Unstream("Caves");
+Levels.Opening;                           // the load in progress (Opening.Scene), or null
 ```
 
 `Levels.Open` ends the level while its objects are still alive (`EndPlay` code can use them), loads the next one in the background and swaps when ready. Wait for it the way you prefer: `Completed += ...`, `yield return`, or `await`.
